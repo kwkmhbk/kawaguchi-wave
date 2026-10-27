@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="波カウント">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<title>波カウント</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  /* iPhone SE（第3世代）の横向き（667×375）を基準にしている */
+  :root {
+    --bg: #000;
+    --panel: #07090c;
+    --frame: #2b3138;
+    --led-amber: #ffb000;   /* カウントダウン */
+    --led-green: #3dff7a;   /* 行き先 */
+    --led-red: #ff3b30;     /* 到着 */
+    --led-white: #e6eef8;   /* 時刻など */
+    --led-dim: #5d6670;     /* 補足・遅延中 */
+    --up: #e85d5d;          /* 上りの見出し */
+    --down: #2f8fe0;        /* 下りの見出し */
+    --warn: #ffd000;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--led-white); }
+  body.debug, body.debug html { overflow: auto; }
+  body {
+    font-family: "DotGothic16", "Hiragino Sans", monospace;
+    -webkit-user-select: none; user-select: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  #app {
+    height: 100%;
+    display: flex; flex-direction: column; gap: 5px;
+    padding: calc(env(safe-area-inset-top) + 5px) calc(env(safe-area-inset-right) + 8px)
+             calc(env(safe-area-inset-bottom) + 4px) calc(env(safe-area-inset-left) + 8px);
+  }
+  body.debug #app { height: auto; min-height: 100%; }
+  body.debug #cols { height: 280px; flex: none; }
+
+  /* LEDの光り方と、ドットの網目 */
+  .led { text-shadow: 0 0 6px currentColor; }
+  .board {
+    position: relative;
+    background-color: var(--panel);
+    border: 2px solid var(--frame);
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 1px #000, inset 0 0 24px rgba(0,0,0,.9);
+  }
+  .board::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 3px;
+    background-image: radial-gradient(rgba(0,0,0,.55) 35%, transparent 36%);
+    background-size: 3px 3px;
+  }
+
+  /* 上部の帯: 駅名・遅延表示・時計・ダイヤ・設定 */
+  #head { display: flex; align-items: center; gap: 10px; padding: 2px 8px; }
+  #station { font-size: 18px; line-height: 1; white-space: nowrap; }
+  #station small { display: block; font-size: 8px; color: var(--led-dim); letter-spacing: .1em; margin-top: 2px; }
+  #headMid { flex: 1; text-align: center; }
+  /* 遅延中だけ出す表示。タップすると運行情報の文章を開く */
+  #delayBadge {
+    display: none; font-family: inherit; font-size: 15px; padding: 2px 10px; color: #000; background: var(--warn);
+    border: 0; border-radius: 3px; position: relative; z-index: 1; white-space: nowrap;
+  }
+  body.delayed #delayBadge { display: inline-block; animation: blink 1.6s steps(1) infinite; }
+  #delayPanel { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.8); padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px); }
+  #delayPanel.open { display: flex; }
+  #delayPanel .box { max-width: 560px; background: #111; border: 2px solid var(--warn); border-radius: 8px; padding: 14px 16px; color: var(--warn); font-size: 17px; line-height: 1.6; }
+  #delayPanel .box b { display: block; margin-bottom: 6px; }
+  #delayPanel .box small { display: block; margin-top: 8px; font-size: 12px; color: #999; }
+  #clock { font-size: 22px; color: var(--led-amber); font-variant-numeric: tabular-nums; }
+  #dayType { font-size: 13px; color: var(--led-green); white-space: nowrap; }
+  #gear {
+    font-family: inherit; background: #15191e; border: 1px solid var(--frame); color: var(--led-dim);
+    font-size: 12px; border-radius: 4px; padding: 4px 8px; position: relative; z-index: 1;
+  }
+
+  /* 左右2列 */
+  #cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; min-height: 0; }
+  #cols.swap .col-I { order: 2; }
+  .col { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .col-head { position: relative; z-index: 1; padding: 2px 8px; font-size: 16px; color: #fff; text-align: center; white-space: nowrap; }
+  .col-head small { font-size: 11px; opacity: .9; margin-left: 6px; }
+  .col-I .col-head { background: var(--up); }
+  .col-O .col-head { background: var(--down); }
+  .col-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 2px 4px; }
+  .first { font-size: 12px; color: var(--led-green); min-height: 14px; line-height: 14px; }
+  .dest { font-size: 20px; color: var(--led-green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .count { display: flex; align-items: baseline; justify-content: center; gap: 6px; white-space: nowrap; }
+  .label { font-size: 18px; color: var(--led-amber); }
+  .sec { font-size: min(28vh, 16vw); line-height: 1.02; color: var(--led-amber); font-variant-numeric: tabular-nums; }
+  .sec.d4 { font-size: min(22vh, 12.5vw); } .sec.d5 { font-size: min(17vh, 10vw); }
+  .unit { font-size: 16px; color: var(--led-amber); }
+  .at { font-size: 14px; color: var(--led-white); font-variant-numeric: tabular-nums; }
+  .col.arrived .label, .col.arrived .sec, .col.arrived .unit { color: var(--led-red); }
+  .col.arrived .label { font-size: 22px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  body.delayed .sec, body.delayed .label, body.delayed .unit { color: var(--led-dim) !important; text-shadow: none; }
+
+  /* 次以降の波の一覧。2行分だけ見せて、指でスライドすると先の時刻も見られる */
+  .next { list-style: none; margin: 0 8px 4px; padding: 0; position: relative; z-index: 1; flex: none;
+    height: 52px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    border-top: 1px solid #263038; border-bottom: 1px solid #263038;
+    scrollbar-width: none; /* スクロールバーは出さず、指でなぞってスライドする */ }
+  .next::-webkit-scrollbar { display: none; }
+  .next li { display: flex; justify-content: space-between; gap: 6px; height: 26px; align-items: center; padding: 0 2px;
+    border-bottom: 1px dashed #263038; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .next .t { color: var(--led-white); }
+  .next .t small { color: var(--led-green); font-size: 11px; margin-right: 4px; }
+  .next .d { color: var(--led-green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* 設定画面 */
+  #settings { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.95); display: none; overflow-y: auto;
+    padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px)
+             calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px);
+    font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  #settings.open { display: block; }
+  #settings h2 { margin: 0 0 12px; font-size: 20px; }
+  #settings .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
+  #settings label, #settings .field { display: block; margin-bottom: 14px; font-size: 14px; color: #ccc; }
+  #settings input:not([type=checkbox]) { display: block; width: 100%; margin-top: 4px; padding: 8px; font-size: 17px;
+    background: #111; color: #fff; border: 1px solid #444; border-radius: 8px; -webkit-user-select: text; user-select: text; }
+  #settings input[type=checkbox] { width: 22px; height: 22px; vertical-align: middle; margin-right: 8px; }
+  #settings .hint { font-size: 12px; color: #888; margin-top: 4px; }
+  #settings .notes { font-size: 12px; color: #888; line-height: 1.6; margin: 4px 0 12px; }
+  #settings .state { font-size: 14px; color: #ddd; margin: 0 0 12px; padding: 8px 10px; background: #111; border: 1px solid #333; border-radius: 8px; }
+  /* 上下の矢印で数値を変える部品 */
+  .stepper { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .stepper button { width: 56px; height: 44px; font-size: 20px; border-radius: 8px; border: 1px solid #555; background: #222; color: #fff; touch-action: manipulation; }
+  .stepper output { min-width: 70px; text-align: center; font-size: 24px; color: #fff; font-variant-numeric: tabular-nums; }
+  .btns { display: flex; gap: 10px; }
+  .btns button, #debug button { flex: 1; padding: 10px; font-size: 16px; border-radius: 10px; border: 1px solid #555; background: #222; color: #fff; font-family: inherit; }
+  .btns button.primary { background: #1e4f70; border-color: #2c6d99; }
+
+  /* デバッグ用パネル（URL の末尾に ?debug を付けたときだけ表示） */
+  #debug { display: none; padding: 8px; border: 1px dashed #c06; border-radius: 10px; font-size: 13px; color: #f8bbd0; font-family: -apple-system, sans-serif; }
+  #debug.on { display: block; }
+  #debug input, #debug select { font-size: 14px; background: #111; color: #fff; border: 1px solid #555; border-radius: 6px; padding: 4px; }
+  #debug .r { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+  #debug button { flex: 0 0 auto; padding: 6px 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head" class="board">
+    <div id="station" class="led">川口元郷<small>KAWAGUCHI-MOTOGO</small></div>
+    <div id="headMid"><button id="delayBadge">南北線 遅延中・予測は目安</button></div>
+    <div id="clock" class="led">--:--:--</div>
+    <div id="dayType" class="led"></div>
+    <button id="gear">設定</button>
+  </div>
+
+  <div id="cols">
+    <section class="col col-I board" id="colI">
+      <div class="col-head">上り<small>赤羽岩淵・目黒方面</small></div>
+      <div class="col-body">
+        <div class="first led"></div>
+        <div class="dest led"></div>
+        <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
+        <div class="at led"></div>
+      </div>
+      <ul class="next"></ul>
+    </section>
+    <section class="col col-O board" id="colO">
+      <div class="col-head">下り<small>浦和美園方面</small></div>
+      <div class="col-body">
+        <div class="first led"></div>
+        <div class="dest led"></div>
+        <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
+        <div class="at led"></div>
+      </div>
+      <ul class="next"></ul>
+    </section>
+  </div>
+
+  <div id="debug">
+    <div><b>デバッグ</b> 表示中の時刻: <span id="dbgNow"></span></div>
+    <div class="r">
+      <input type="datetime-local" id="dbgTime" step="1">
+      <button id="dbgSet">この時刻にする</button>
+      <button id="dbgReset">実時刻</button>
+    </div>
+    <div class="r" id="dbgPresets"></div>
+    <div class="r">
+      遅延情報:
+      <select id="dbgMock">
+        <option value="">実際に取得</option>
+        <option value="normal">平常（模擬）</option>
+        <option value="delay">遅延（模擬）</option>
+        <option value="error">取得失敗（模擬）</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div id="delayPanel">
+  <div class="box">
+    <b>南北線 遅延中・予測は目安</b>
+    <span id="delayText"></span>
+    <small>タップで閉じる</small>
+  </div>
+</div>
+
+<div id="settings">
+  <h2>設定</h2>
+  <div class="state">遅延情報: <span id="netStatus"></span><span id="checked"></span>　※遅延時は表示が不正確になります</div>
+  <div class="grid">
+    <div class="field">上り（赤羽岩淵方面）のオフセット（秒）
+      <div class="stepper" data-key="offsetI"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
+    </div>
+    <div class="field">下り（浦和美園方面）のオフセット（秒）
+      <div class="stepper" data-key="offsetO"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
+    </div>
+  </div>
+  <div class="notes">オフセット ＝ 到着の秒数（0〜59秒）＋ ホームから店まで歩く時間。初期値は60秒。矢印を押し続けると速く変わります。</div>
+  <div class="field">到着後にカウントアップする時間（秒）
+    <div class="stepper" data-key="holdSec" data-max="300"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
+    <div class="hint">0秒になったら「到着」と表示して 0, 1, 2… と数え、この秒数まで数えたら次の波に切り替えます。初期値は30秒。</div>
+  </div>
+  <label>ODPT の APIキー
+    <input type="password" id="setKey" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="hint">この端末の中（localStorage）にだけ保存。空欄なら遅延検知は止まります。</div>
+  </label>
+  <label><input type="checkbox" id="setSwap">左右を入れ替える（左に下り、右に上り）</label>
+  <div class="notes">
+    遅延検知は東京メトロ南北線の運行情報を使っています。5分以上の遅れが対象なので、小さな遅れは検知できません。
+    埼玉高速鉄道の区間だけで起きた遅れは、南北線の情報に出ないことがあります。<br>
+    時刻表・運行情報: 公共交通オープンデータセンター（ODPT）/ Mini Tokyo 3D。<span id="ttDateFull"></span>
+  </div>
+  <div class="btns">
+    <button id="setCancel">閉じる</button>
+    <button id="setSave" class="primary">保存</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ===================== 時刻表データ =====================
+// この印の間は extract.js が自動で書き換える。手で編集しないこと。
+// 各行: [運行日の0時からの分（深夜0時台は24時以降として数える）, 方向(O=下り/I=上り), 行き先, 列車番号]
+/* @@TIMETABLE_START@@ */
+const TIMETABLE = {"generated":"2026-10-27","weekday":[[312,"I","日吉","B580M"],
+[316,"O","浦和美園","A552S"],
+[326,"I","日吉","B582M"],
+[329,"O","浦和美園","A540S"],
+[340,"I","湘南台","B520K"],
+[345,"O","浦和美園","A536S"],
+[352,"I","日吉","B552S"],
+[360,"O","浦和美園","A416K"],
+[361,"I","日吉","B562S"],
+[370,"I","海老名","B522K"],
+[372,"O","浦和美園","A550S"],
+[380,"I","日吉","B640S"],
+[383,"O","浦和美園","A518K"],
+[390,"I","日吉","B636S"],
+[392,"O","浦和美園","A534K"],
+[396,"O","浦和美園","A642S"],
+[397,"I","新横浜","B616K"],
+[404,"I","新横浜","B654S"],
+[405,"O","浦和美園","A596M"],
+[410,"I","日吉","B650S"],
+[414,"O","浦和美園","A530S"],
+[417,"I","武蔵小杉","B684M"],
+[422,"I","海老名","B618K"],
+[424,"O","浦和美園","A538S"],
+[427,"I","日吉","B664S"],
+[432,"I","日吉","B642S"],
+[434,"O","浦和美園","A542G"],
+[437,"I","武蔵小杉","B734K"],
+[441,"I","新横浜","B796M"],
+[444,"O","浦和美園","A538G"],
+[445,"I","白金高輪","B786M"],
+[449,"I","武蔵小杉","B744S"],
+[450,"O","鳩ヶ谷","A746S"],
+[453,"I","武蔵小杉","B730S"],
+[456,"O","浦和美園","A660S"],
+[458,"I","日吉","B788M"],
+[460,"O","浦和美園","A748S"],
+[462,"I","武蔵小杉","B738S"],
+[465,"I","白金高輪","B790M"],
+[466,"O","浦和美園","A536K"],
+[467,"I","日吉","B746S"],
+[470,"I","海老名","B742G"],
+[472,"O","浦和美園","A632S"],
+[473,"I","白金高輪","B766S"],
+[477,"I","武蔵小杉","B792M"],
+[477,"O","浦和美園","A682M"],
+[480,"I","日吉","B794M"],
+[483,"O","鳩ヶ谷","A680M"],
+[486,"I","海老名","B738G"],
+[488,"O","浦和美園","A638K"],
+[490,"I","麻布十番","B768S"],
+[493,"I","日吉","B760S"],
+[495,"O","浦和美園","A634S"],
+[497,"I","白金高輪","B848S"],
+[501,"I","麻布十番","B880M"],
+[501,"O","鳩ヶ谷","A752S"],
+[505,"I","武蔵小杉","B836K"],
+[507,"O","浦和美園","A630K"],
+[509,"I","日吉","B870S"],
+[512,"O","鳩ヶ谷","A746K"],
+[513,"I","白金高輪","B832S"],
+[516,"I","日吉","B882M"],
+[517,"O","浦和美園","A702K"],
+[520,"I","白金高輪","B852S"],
+[521,"O","鳩ヶ谷","A762S"],
+[524,"I","武蔵小杉","B838K"],
+[526,"O","浦和美園","A740S"],
+[528,"I","武蔵小杉","B846K"],
+[530,"O","鳩ヶ谷","A704K"],
+[533,"I","白金高輪","B834S"],
+[534,"O","浦和美園","A740K"],
+[538,"I","新横浜","B862S"],
+[538,"O","浦和美園","A886M"],
+[542,"O","鳩ヶ谷","A736S"],
+[543,"I","白金高輪","B830K"],
+[548,"I","白金高輪","B904K"],
+[550,"O","浦和美園","A744G"],
+[554,"I","海老名","B802K"],
+[554,"O","鳩ヶ谷","A716K"],
+[558,"I","白金高輪","B936S"],
+[558,"O","浦和美園","A890M"],
+[562,"O","浦和美園","A850S"],
+[563,"I","白金高輪","B940S"],
+[565,"O","浦和美園","A720K"],
+[569,"O","鳩ヶ谷","A854S"],
+[570,"I","西谷","B916K"],
+[573,"O","浦和美園","A866S"],
+[575,"I","白金高輪","B986M"],
+[576,"O","浦和美園","A864S"],
+[580,"I","武蔵小杉","B940K"],
+[582,"O","浦和美園","A968S"],
+[585,"O","鳩ヶ谷","A842S"],
+[586,"I","白金高輪","B954S"],
+[588,"O","浦和美園","A822K"],
+[592,"I","白金高輪","B944G"],
+[594,"O","浦和美園","A980M"],
+[598,"O","鳩ヶ谷","A896M"],
+[599,"I","新横浜","B950S"],
+[601,"O","浦和美園","A932S"],
+[604,"I","白金高輪","B1042S"],
+[605,"O","鳩ヶ谷","A888M"],
+[609,"O","浦和美園","A952S"],
+[611,"I","新横浜","B966S"],
+[614,"O","浦和美園","A812K"],
+[617,"I","白金高輪","B1096M"],
+[621,"O","浦和美園","A934S"],
+[623,"I","白金高輪","B1068S"],
+[627,"O","浦和美園","A946S"],
+[629,"I","新横浜","B1088M"],
+[633,"O","浦和美園","A930K"],
+[635,"I","日吉","B1080M"],
+[639,"O","浦和美園","A994M"],
+[647,"I","白金高輪","B1032S"],
+[649,"O","浦和美園","A1040S"],
+[654,"O","浦和美園","A960S"],
+[659,"I","新横浜","B1012K"],
+[665,"O","浦和美園","A970S"],
+[671,"I","新横浜","B1046S"],
+[677,"O","浦和美園","A1044G"],
+[683,"I","白金高輪","B1130K"],
+[689,"O","浦和美園","A1042S"],
+[695,"I","日吉","B1160S"],
+[701,"O","浦和美園","A1196M"],
+[707,"I","白金高輪","B1170S"],
+[713,"O","浦和美園","A1030S"],
+[719,"I","新横浜","B1144G"],
+[725,"O","浦和美園","A1084M"],
+[731,"I","新横浜","B1142S"],
+[737,"O","浦和美園","A1186M"],
+[743,"I","白金高輪","B1296M"],
+[749,"O","浦和美園","A1144S"],
+[755,"I","日吉","B1230S"],
+[761,"O","浦和美園","A1282M"],
+[767,"I","白金高輪","B1284M"],
+[773,"O","浦和美園","A1166S"],
+[779,"I","新横浜","B1286M"],
+[785,"O","浦和美園","A1188M"],
+[791,"I","新横浜","B1244S"],
+[797,"O","浦和美園","A1238S"],
+[803,"I","白金高輪","B1382M"],
+[809,"O","浦和美園","A1254S"],
+[815,"I","日吉","B1366S"],
+[821,"O","浦和美園","A1392M"],
+[827,"I","白金高輪","B1388M"],
+[833,"O","浦和美園","A1246S"],
+[839,"I","新横浜","B1338S"],
+[845,"O","浦和美園","A1262S"],
+[851,"I","新横浜","B1354S"],
+[857,"O","浦和美園","A1380M"],
+[863,"I","白金高輪","B1492M"],
+[869,"O","浦和美園","A1332S"],
+[875,"I","日吉","B1446S"],
+[881,"O","浦和美園","A1404K"],
+[887,"I","白金高輪","B1462S"],
+[893,"O","浦和美園","A1342S"],
+[899,"I","新横浜","B1480M"],
+[905,"O","浦和美園","A1350S"],
+[911,"I","新横浜","B1432S"],
+[917,"O","浦和美園","A1460S"],
+[923,"I","白金高輪","B1590M"],
+[929,"O","浦和美園","A1470S"],
+[935,"I","日吉","B1542S"],
+[941,"O","浦和美園","A1568S"],
+[947,"I","白金高輪","B1550S"],
+[953,"O","浦和美園","A1444S"],
+[959,"I","湘南台","B1520K"],
+[965,"O","浦和美園","A1412K"],
+[971,"I","日吉","B1570S"],
+[977,"O","浦和美園","A1530S"],
+[983,"I","白金高輪","B1664S"],
+[989,"O","浦和美園","A1584M"],
+[994,"I","日吉","B1644S"],
+[1001,"O","浦和美園","A1630K"],
+[1004,"I","海老名","B1612K"],
+[1008,"O","浦和美園","A1690M"],
+[1017,"I","日吉","B1630S"],
+[1019,"O","浦和美園","A1546S"],
+[1023,"I","白金高輪","B1694M"],
+[1025,"O","浦和美園","A1544G"],
+[1029,"I","武蔵小杉","B1660S"],
+[1031,"O","浦和美園","A1650S"],
+[1035,"I","日吉","B1684M"],
+[1037,"O","浦和美園","A1666S"],
+[1041,"I","海老名","B1730K"],
+[1043,"O","浦和美園","A1682M"],
+[1047,"I","日吉","B1790M"],
+[1050,"O","浦和美園","A1688M"],
+[1052,"I","武蔵小杉","B1740S"],
+[1056,"O","浦和美園","A1680M"],
+[1058,"I","日吉","B1746S"],
+[1063,"I","日吉","B1734S"],
+[1063,"O","浦和美園","A1796M"],
+[1068,"I","海老名","B1744G"],
+[1069,"O","浦和美園","A1764S"],
+[1074,"I","新横浜","B1750S"],
+[1075,"O","浦和美園","A1632S"],
+[1078,"I","白金高輪","B1766S"],
+[1080,"O","浦和美園","A1642S"],
+[1083,"I","海老名","B1704K"],
+[1086,"O","浦和美園","A1686M"],
+[1088,"I","白金高輪","B1788M"],
+[1092,"O","浦和美園","A1738K"],
+[1093,"I","武蔵小杉","B1780M"],
+[1099,"I","日吉","B1896M"],
+[1099,"O","浦和美園","A1614K"],
+[1104,"O","浦和美園","A1748K"],
+[1105,"I","海老名","B1822K"],
+[1109,"O","浦和美園","A1794M"],
+[1110,"I","日吉","B1864S"],
+[1114,"O","浦和美園","A1792M"],
+[1115,"I","日吉","B1832S"],
+[1119,"O","浦和美園","A1762S"],
+[1120,"I","白金高輪","B1842S"],
+[1124,"O","浦和美園","A1770S"],
+[1125,"I","日吉","B1886M"],
+[1129,"O","浦和美園","A1718K"],
+[1130,"I","新横浜","B1852S"],
+[1134,"O","浦和美園","A1858S"],
+[1136,"I","武蔵小杉","B1814K"],
+[1139,"O","浦和美園","A1738S"],
+[1142,"I","白金高輪","B1868S"],
+[1144,"O","浦和美園","A1744S"],
+[1148,"I","日吉","B1894M"],
+[1149,"O","浦和美園","A1756S"],
+[1154,"O","浦和美園","A1846K"],
+[1155,"I","日吉","B1892M"],
+[1159,"O","浦和美園","A1854S"],
+[1160,"I","新横浜","B1962S"],
+[1164,"O","浦和美園","A1866S"],
+[1167,"I","新横浜","B1970S"],
+[1169,"O","浦和美園","A1830S"],
+[1173,"I","海老名","B1918K"],
+[1174,"O","浦和美園","A1710K"],
+[1179,"I","白金高輪","B1938S"],
+[1179,"O","浦和美園","A1888M"],
+[1184,"O","浦和美園","A1884M"],
+[1185,"I","日吉","B1956S"],
+[1190,"I","海老名","B1946K"],
+[1190,"O","浦和美園","A1720K"],
+[1196,"I","白金高輪","B1954S"],
+[1198,"O","浦和美園","A1890M"],
+[1202,"I","海老名","B1948K"],
+[1203,"O","浦和美園","A1826K"],
+[1209,"I","白金高輪","B1930S"],
+[1209,"O","浦和美園","A1942S"],
+[1214,"O","浦和美園","A1934S"],
+[1216,"I","日吉","B2088M"],
+[1220,"O","浦和美園","A1808K"],
+[1221,"I","新横浜","B2084M"],
+[1225,"O","浦和美園","A1946S"],
+[1228,"I","白金高輪","B2066S"],
+[1231,"O","浦和美園","A1912K"],
+[1234,"I","新横浜","B2020K"],
+[1237,"O","浦和美園","A1968S"],
+[1241,"I","白金高輪","B2090M"],
+[1244,"O","浦和美園","A1950S"],
+[1248,"I","新横浜","B2042S"],
+[1250,"O","浦和美園","A1996M"],
+[1256,"I","白金高輪","B2008K"],
+[1257,"O","浦和美園","A1832G"],
+[1263,"I","日吉","B2046S"],
+[1266,"O","浦和美園","A2038S"],
+[1269,"I","日吉","B2082M"],
+[1274,"O","浦和美園","A2052S"],
+[1276,"I","日吉","B2168S"],
+[1280,"O","浦和美園","A2086M"],
+[1283,"I","白金高輪","B2150S"],
+[1288,"O","浦和美園","A2054S"],
+[1291,"I","白金高輪","B2196M"],
+[1299,"I","海老名","B2132G"],
+[1299,"O","浦和美園","A2094M"],
+[1306,"O","浦和美園","A2062S"],
+[1309,"I","白金高輪","B2138S"],
+[1313,"O","浦和美園","A2092M"],
+[1316,"I","白金高輪","B2152S"],
+[1321,"O","浦和美園","A2004K2"],
+[1324,"I","日吉","B2154S"],
+[1328,"O","浦和美園","A2190M"],
+[1330,"I","日吉","B2186M"],
+[1334,"O","浦和美園","A2070S"],
+[1337,"I","新横浜","B2294M"],
+[1341,"O","浦和美園","A2156S"],
+[1344,"I","白金高輪","B2262S"],
+[1348,"O","浦和美園","A2108K"],
+[1358,"I","白金高輪","B2292M"],
+[1361,"O","浦和美園","A2188M"],
+[1364,"I","白金高輪","B2290M"],
+[1367,"O","浦和美園","A2184M"],
+[1370,"I","日吉","B2270S"],
+[1374,"O","浦和美園","A2250S"],
+[1377,"I","白金高輪","B2256S"],
+[1382,"O","浦和美園","A2120K"],
+[1384,"I","日吉","B2208K"],
+[1389,"O","浦和美園","A2296M"],
+[1398,"I","武蔵小杉","B2388M"],
+[1402,"O","浦和美園","A2238S"],
+[1407,"I","白金高輪","B2304K"],
+[1410,"O","浦和美園","A2252S"],
+[1415,"I","武蔵小杉","B2312K"],
+[1418,"O","浦和美園","A2242S"],
+[1423,"I","奥沢","B2320K"],
+[1426,"O","浦和美園","A2282M"],
+[1435,"I","目黒","B2338K"],
+[1440,"O","浦和美園","A2268S"],
+[1447,"O","浦和美園","A2392M"],
+[1448,"I","市ケ谷","B2352S"],
+[1455,"O","浦和美園","A2390M"],
+[1462,"I","駒込","B2442S"],
+[1462,"O","浦和美園","A2380M"],
+[1472,"O","浦和美園","A2386M"],
+[1482,"O","鳩ヶ谷","A2394M"]],"holiday":[[312,"I","日吉","B580M"],
+[316,"O","浦和美園","A552S"],
+[326,"I","日吉","B582M"],
+[329,"O","浦和美園","A540S"],
+[339,"I","海老名","B522K"],
+[345,"O","浦和美園","A536S"],
+[350,"I","白金高輪","B562S"],
+[360,"I","新横浜","B552S"],
+[360,"O","浦和美園","A418K"],
+[370,"I","日吉","B540S"],
+[372,"O","浦和美園","A550S"],
+[380,"I","新横浜","B636S"],
+[383,"O","浦和美園","A524K"],
+[390,"I","白金高輪","B684M"],
+[393,"O","浦和美園","A520K"],
+[400,"I","白金高輪","B618K"],
+[404,"O","浦和美園","A642S"],
+[410,"I","新横浜","B650S"],
+[414,"O","浦和美園","A530S"],
+[420,"I","新横浜","B624K"],
+[424,"O","浦和美園","A538S"],
+[429,"I","新横浜","B664S"],
+[435,"O","浦和美園","A662S"],
+[437,"I","湘南台","B720K"],
+[444,"O","浦和美園","A644S"],
+[448,"I","日吉","B742S"],
+[453,"O","浦和美園","A660S"],
+[454,"I","日吉","B730S"],
+[463,"I","白金高輪","B738S"],
+[463,"O","浦和美園","A680M"],
+[468,"I","武蔵小杉","B740K"],
+[471,"O","浦和美園","A682M"],
+[473,"I","白金高輪","B786M"],
+[478,"I","白金高輪","B762S"],
+[479,"O","浦和美園","A784M"],
+[483,"I","日吉","B744S"],
+[486,"O","鳩ヶ谷","A718K"],
+[488,"I","白金高輪","B766S"],
+[492,"O","浦和美園","A746S"],
+[493,"I","白金高輪","B760S"],
+[498,"I","日吉","B880M"],
+[498,"O","鳩ヶ谷","A732S"],
+[503,"I","白金高輪","B868S"],
+[504,"O","浦和美園","A714K"],
+[508,"I","西谷","B818K"],
+[510,"O","鳩ヶ谷","A606K"],
+[514,"I","日吉","B882M"],
+[516,"O","浦和美園","A740S"],
+[519,"I","新横浜","B832S"],
+[522,"O","浦和美園","A752S"],
+[525,"I","白金高輪","B884M"],
+[531,"I","白金高輪","B846S"],
+[533,"O","浦和美園","A734S"],
+[536,"I","西谷","B806K"],
+[538,"O","浦和美園","A736S"],
+[542,"I","日吉","B888M"],
+[545,"O","浦和美園","A722K"],
+[555,"I","白金高輪","B840S"],
+[558,"O","浦和美園","A886M"],
+[563,"O","浦和美園","A862S"],
+[567,"I","新横浜","B952S"],
+[573,"I","日吉","B990M"],
+[573,"O","浦和美園","A866S"],
+[578,"O","浦和美園","A824K"],
+[585,"I","白金高輪","B936S"],
+[588,"O","浦和美園","A842S"],
+[598,"I","新横浜","B922K"],
+[601,"O","浦和美園","A830S"],
+[606,"O","浦和美園","A812K"],
+[611,"I","新横浜","B966S"],
+[617,"O","浦和美園","A946S"],
+[623,"I","白金高輪","B1086M"],
+[629,"O","浦和美園","A944S"],
+[635,"I","日吉","B1042S"],
+[641,"O","浦和美園","A1040S"],
+[647,"I","白金高輪","B1012K"],
+[653,"O","浦和美園","A980M"],
+[659,"I","新横浜","B1046S"],
+[665,"O","浦和美園","A902K"],
+[671,"I","新横浜","B1044S"],
+[677,"O","浦和美園","A1064S"],
+[683,"I","白金高輪","B1140S"],
+[689,"O","浦和美園","A1088M"],
+[695,"I","日吉","B1180M"],
+[701,"O","浦和美園","A1156S"],
+[707,"I","白金高輪","B1194M"],
+[713,"O","浦和美園","A1092M"],
+[719,"I","新横浜","B1164S"],
+[725,"O","浦和美園","A1052S"],
+[731,"I","新横浜","B1188M"],
+[737,"O","浦和美園","A1182M"],
+[743,"I","白金高輪","B1256S"],
+[749,"O","浦和美園","A1184M"],
+[755,"I","日吉","B1292M"],
+[761,"O","浦和美園","A1232S"],
+[767,"I","白金高輪","B1252S"],
+[773,"O","浦和美園","A1166S"],
+[779,"I","新横浜","B1282M"],
+[785,"O","浦和美園","A1108K"],
+[791,"I","新横浜","B1284M"],
+[797,"O","浦和美園","A1290M"],
+[803,"I","白金高輪","B1332S"],
+[809,"O","浦和美園","A1236S"],
+[815,"I","日吉","B1366S"],
+[821,"O","浦和美園","A1360S"],
+[827,"I","白金高輪","B1396M"],
+[833,"O","浦和美園","A1244S"],
+[839,"I","新横浜","B1308K"],
+[845,"O","浦和美園","A1230K"],
+[851,"I","新横浜","B1336S"],
+[857,"O","浦和美園","A1342S"],
+[863,"I","白金高輪","B1460S"],
+[869,"O","浦和美園","A1312K"],
+[875,"I","日吉","B1444S"],
+[881,"O","浦和美園","A1450S"],
+[887,"I","白金高輪","B1490M"],
+[893,"O","浦和美園","A1388M"],
+[899,"I","新横浜","B1430K"],
+[905,"O","浦和美園","A1322K"],
+[911,"I","新横浜","B1442S"],
+[917,"O","浦和美園","A1480M"],
+[923,"I","白金高輪","B1550S"],
+[929,"O","浦和美園","A1494M"],
+[935,"I","日吉","B1588M"],
+[941,"O","浦和美園","A1586M"],
+[947,"I","白金高輪","B1570S"],
+[953,"O","浦和美園","A1484M"],
+[959,"I","海老名","B1514K"],
+[965,"O","浦和美園","A1446S"],
+[971,"I","新横浜","B1594M"],
+[977,"O","浦和美園","A1592M"],
+[983,"I","白金高輪","B1686M"],
+[989,"O","浦和美園","A1552S"],
+[995,"I","日吉","B1684M"],
+[1001,"O","浦和美園","A1640S"],
+[1007,"I","白金高輪","B1680M"],
+[1013,"O","浦和美園","A1536S"],
+[1019,"I","海老名","B1624K"],
+[1025,"O","浦和美園","A1564S"],
+[1031,"I","新横浜","B1652S"],
+[1037,"O","浦和美園","A1666S"],
+[1043,"I","白金高輪","B1740S"],
+[1049,"O","浦和美園","A1696M"],
+[1055,"I","新横浜","B1736S"],
+[1061,"O","浦和美園","A1756S"],
+[1067,"I","白金高輪","B1764S"],
+[1073,"O","浦和美園","A1642S"],
+[1079,"I","湘南台","B1722K"],
+[1085,"O","浦和美園","A1682M"],
+[1091,"I","日吉","B1766S"],
+[1097,"O","浦和美園","A1744S"],
+[1103,"I","白金高輪","B1896M"],
+[1109,"O","浦和美園","A1790M"],
+[1115,"I","日吉","B1842S"],
+[1121,"O","浦和美園","A1848S"],
+[1127,"I","日吉","B1856S"],
+[1133,"O","浦和美園","A1794M"],
+[1139,"I","白金高輪","B1882M"],
+[1145,"O","浦和美園","A1734G"],
+[1146,"I","日吉","B1844S"],
+[1151,"O","浦和美園","A1864S"],
+[1153,"I","海老名","B1802K"],
+[1157,"O","浦和美園","A1888M"],
+[1168,"I","日吉","B1948S"],
+[1169,"O","浦和美園","A1870S"],
+[1175,"O","浦和美園","A1714K"],
+[1183,"I","海老名","B1912K"],
+[1187,"O","浦和美園","A1996M"],
+[1191,"I","白金高輪","B1964S"],
+[1194,"O","浦和美園","A1852S"],
+[1206,"I","日吉","B1970S"],
+[1207,"O","浦和美園","A1832K"],
+[1214,"I","白金高輪","B1934S"],
+[1214,"O","浦和美園","A1836S"],
+[1221,"O","浦和美園","A1984M"],
+[1229,"I","海老名","B2014K"],
+[1234,"O","浦和美園","A1982M"],
+[1236,"I","日吉","B2096M"],
+[1241,"O","浦和美園","A1980M"],
+[1243,"I","白金高輪","B2052S"],
+[1248,"O","浦和美園","A1966S"],
+[1259,"I","白金高輪","B2084M"],
+[1263,"O","浦和美園","A2050S"],
+[1268,"I","日吉","B2036S"],
+[1276,"I","白金高輪","B2182M"],
+[1277,"O","浦和美園","A2056S"],
+[1285,"I","海老名","B2134G"],
+[1285,"O","浦和美園","A2064S"],
+[1292,"O","浦和美園","A2020K"],
+[1293,"I","日吉","B2166S"],
+[1301,"O","浦和美園","A2044S"],
+[1302,"I","白金高輪","B2150S"],
+[1309,"O","浦和美園","A2186M"],
+[1318,"I","白金高輪","B2146S"],
+[1323,"O","浦和美園","A2060S"],
+[1325,"I","白金高輪","B2156S"],
+[1331,"O","浦和美園","A2142K"],
+[1333,"I","白金高輪","B2164S"],
+[1338,"O","浦和美園","A2152S"],
+[1348,"I","白金高輪","B2244S"],
+[1353,"O","浦和美園","A2122K"],
+[1356,"I","武蔵小杉","B2286M"],
+[1361,"O","浦和美園","A2284M"],
+[1363,"I","日吉","B2260S"],
+[1368,"O","浦和美園","A2102K"],
+[1371,"I","日吉","B2242K"],
+[1377,"O","浦和美園","A2282M"],
+[1388,"I","白金高輪","B2252S"],
+[1391,"O","浦和美園","A2250S"],
+[1395,"I","新横浜","B2222K"],
+[1398,"O","浦和美園","A2244K"],
+[1410,"I","白金高輪","B2362S"],
+[1413,"O","浦和美園","A2256S"],
+[1421,"I","奥沢","B2302K"],
+[1422,"O","浦和美園","A2236S"],
+[1429,"I","白金高輪","B2350S"],
+[1432,"O","浦和美園","A2364S"],
+[1435,"I","目黒","B2344K"],
+[1440,"O","浦和美園","A2344S"],
+[1451,"I","駒込","B2356S"],
+[1456,"O","浦和美園","A2366S"],
+[1464,"O","浦和美園","A2396M"]]};
+/* @@TIMETABLE_END@@ */
+
+// ===================== 定数 =====================
+// 4時より前は前日の運行日の続きとして扱う（extract.js と同じ基準）
+const SERVICE_DAY_START_HOUR = 4;
+const DELAY_INTERVAL_MS = 3 * 60 * 1000; // 遅延情報を取りに行く間隔（3分）
+const NAMBOKU = 'odpt.Railway:TokyoMetro.Namboku';
+const ODPT_URL = 'https://api.odpt.org/api/v4/odpt:TrainInformation?odpt:operator=odpt.Operator:TokyoMetro&acl:consumerKey=';
+const LIST_COUNT = 40; // 次以降の一覧に並べる本数（スライドで見られる）
+
+// 日本の祝日（振替休日・国民の休日を含む）。翌年以降の分はここに書き足す。
+const HOLIDAYS = new Set([
+  // 2026年
+  '2026-01-01', '2026-01-12', '2026-02-11', '2026-02-23', '2026-03-20', '2026-04-29',
+  '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06', // 5/6 は振替休日
+  '2026-07-20', '2026-08-11', '2026-09-21', '2026-09-22', // 9/22 は国民の休日
+  '2026-09-23', '2026-10-12', '2026-11-03', '2026-11-23',
+  // 2027年
+  '2027-01-01', '2027-01-11', '2027-02-11', '2027-02-23', '2027-03-21', '2027-03-22', // 3/22 は振替休日
+  '2027-04-29', '2027-05-03', '2027-05-04', '2027-05-05', '2027-07-19', '2027-08-11',
+  '2027-09-20', '2027-09-23', '2027-10-11', '2027-11-03', '2027-11-23',
+]);
+const HOLIDAY_LAST_YEAR = 2027;
+
+// ===================== 設定（localStorage） =====================
+const SETTINGS_KEY = 'kawaguchiWave.settings';
+// holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
+const DEFAULTS = { offsetO: 60, offsetI: 60, holdSec: 30, swap: false, apiKey: '' };
+
+function loadSettings() {
+  try {
+    return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+  } catch (e) {
+    return Object.assign({}, DEFAULTS);
+  }
+}
+function saveSettings(s) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* 保存できない環境では今回だけ有効 */ }
+}
+let settings = loadSettings();
+
+// ===================== 時計（デバッグ時はずらせる） =====================
+let clockOffsetMs = 0;
+const now = () => Date.now() + clockOffsetMs;
+
+// ===================== 平日・土休日の判定 =====================
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+
+// 年末年始（12/30〜1/3）は特別ダイヤになる場合があるが、とりあえず土休日ダイヤとして扱う。
+function isHolidayDiagram(d) {
+  const dow = d.getDay(), m = d.getMonth() + 1, day = d.getDate();
+  if (dow === 0 || dow === 6) return true;
+  if (HOLIDAYS.has(ymd(d))) return true;
+  if ((m === 12 && day >= 30) || (m === 1 && day <= 3)) return true;
+  return false;
+}
+
+// 時刻 t が属する運行日（その日の0時）を返す
+function serviceDateOf(t) {
+  const d = new Date(t);
+  if (d.getHours() < SERVICE_DAY_START_HOUR) d.setDate(d.getDate() - 1);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// ===================== 波の計算 =====================
+// 方向 dir の波のうち、到着からカウントアップ中（holdSec 秒まで）のものと、これから来るものを count 個返す
+function wavesOf(t, dir, count) {
+  const holdSec = Math.max(0, Number(settings.holdSec) || 0);
+  const from = t - (holdSec + 1) * 1000;
+  const offset = (Number(dir === 'O' ? settings.offsetO : settings.offsetI) || 0) * 1000;
+  const sd = serviceDateOf(from);
+  const out = [];
+  // 前日・当日・翌日の運行日を順に見れば、終電後や日付またぎもそのまま扱える
+  for (let k = -1; k <= 2 && out.length < count; k++) {
+    const day = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + k);
+    const holiday = isHolidayDiagram(day);
+    const base = day.getTime();
+    for (const [min, d, dest, no] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
+      if (d !== dir) continue;
+      // 時刻表の時刻（秒は00）＋方向ごとのオフセット
+      const at = base + min * 60000 + offset;
+      if (at > from) out.push({ at, dir, dest, no, holiday });
+      if (out.length >= count) break;
+    }
+  }
+  return out;
+}
+
+// ===================== 画面表示 =====================
+const $ = id => document.getElementById(id);
+const hms = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+const hm = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+
+// 1方向ぶんの列を描く。現在の波を返す
+function renderColumn(col, t, sd, dir) {
+  const waves = wavesOf(t, dir, LIST_COUNT + 1);
+  const q = sel => col.querySelector(sel);
+  const w = waves[0];
+  if (!w) {
+    q('.dest').textContent = '時刻表データなし';
+    q('.sec').textContent = '--';
+    return null;
+  }
+  const remain = Math.ceil((w.at - t) / 1000);
+  const arrived = remain <= 0;
+  col.classList.toggle('arrived', arrived);
+  q('.dest').textContent = w.dest + '行';
+  q('.label').textContent = arrived ? '到着' : 'あと';
+  // 到着後はマイナスを付けずに 0, 1, 2… とカウントアップする
+  const secText = String(arrived ? -remain : remain);
+  const sec = q('.sec');
+  sec.textContent = secText;
+  sec.className = 'sec led' + (secText.length >= 5 ? ' d5' : secText.length === 4 ? ' d4' : '');
+  q('.at').textContent = hms(w.at) + ' 着';
+
+  // 翌日の始発などで運行日が変わる場合は、その旨を出す
+  const wsd = serviceDateOf(w.at);
+  let first = '';
+  if (wsd.getTime() !== sd.getTime()) {
+    first = (wsd.getMonth() + 1) + '/' + wsd.getDate() + ' ' + (w.holiday ? '土休日' : '平日') + ' 始発';
+  } else if (remain >= 600) {
+    first = '約' + Math.floor(remain / 60) + '分後';
+  }
+  q('.first').textContent = first;
+
+  // 一覧は中身が変わったときだけ作り直す（毎秒作り直すとスライド中に位置が戻るため）
+  const ul = q('.next');
+  const listKey = waves.length > 1 ? waves[1].at + ':' + waves.length + ':' + sd.getTime() : '';
+  if (ul.dataset.key === listKey) return { at: w.at, arrived };
+  ul.dataset.key = listKey;
+  ul.textContent = '';
+  ul.scrollTop = 0;
+  for (const nw of waves.slice(1)) {
+    const li = document.createElement('li');
+    const a = document.createElement('span');
+    a.className = 't led';
+    // 今の運行日より後の電車には「翌」を付ける
+    if (serviceDateOf(nw.at).getTime() !== sd.getTime()) {
+      const m = document.createElement('small');
+      m.textContent = '翌';
+      a.appendChild(m);
+    }
+    a.append(hms(nw.at));
+    const b = document.createElement('span');
+    b.className = 'd led';
+    b.textContent = nw.dest;
+    li.append(a, b);
+    ul.appendChild(li);
+  }
+  return { at: w.at, arrived };
+}
+
+function render() {
+  const t = now();
+  const sd = serviceDateOf(t);
+  $('clock').textContent = hms(t);
+  let dayText = (isHolidayDiagram(sd) ? '土休日' : '平日') + 'ダイヤ';
+  if (sd.getFullYear() > HOLIDAY_LAST_YEAR) dayText += '（祝日リスト要更新）';
+  $('dayType').textContent = dayText;
+  $('cols').classList.toggle('swap', !!settings.swap);
+
+  renderColumn($('colI'), t, sd, 'I');
+  renderColumn($('colO'), t, sd, 'O');
+
+  if (debugOn) $('dbgNow').textContent = new Date(t).toLocaleString('ja-JP');
+}
+
+// 毎秒、秒の切り替わりに合わせて更新する
+function tick() {
+  render();
+  setTimeout(tick, 1000 - (now() % 1000) + 5);
+}
+
+// ===================== 遅延の自動検知（ODPT） =====================
+// 方針: 遅延を見つけたら知らせるだけ。予測時刻はずらさない。
+const delay = { state: 'init', text: '', checkedAt: 0 };
+let delayTimer = null;
+let mockMode = '';
+
+// ODPT の多言語項目は {ja, en} の形。念のため文字列でも受け付ける
+const jaText = v => (v == null ? '' : typeof v === 'string' ? v : (v.ja || v.en || ''));
+
+// 南北線が平常運転かどうか。
+// 【要確認】APIキー取得後に実際のレスポンスで確かめること。
+// ODPT の仕様では、平常時は odpt:trainInformationStatus が省略されるか「平常」を含む値になり、
+// odpt:trainInformationText は「現在、平常どおり運転しています。」のような文章になる。
+function isNormal(info) {
+  const status = jaText(info['odpt:trainInformationStatus']);
+  const text = jaText(info['odpt:trainInformationText']);
+  if (status) return /平常/.test(status);
+  return /平常/.test(text);
+}
+
+// 模擬データ（デバッグ用）。ODPT のレスポンスと同じ形にしてある
+const MOCK = {
+  normal: [{ 'odpt:railway': NAMBOKU, 'odpt:trainInformationText': { ja: '現在、平常どおり運転しています。' } }],
+  delay: [{ 'odpt:railway': NAMBOKU, 'odpt:trainInformationStatus': { ja: '遅延' },
+    'odpt:trainInformationText': { ja: '16時30分頃、市ケ谷駅で急病のお客様救護のため、南北線の一部列車に遅れが出ています。' } }],
+};
+
+async function fetchDelay() {
+  if (mockMode === 'error') return applyDelay(null, new Error('模擬エラー'));
+  if (mockMode) return applyDelay(MOCK[mockMode]);
+  if (!settings.apiKey) {
+    delay.state = 'nokey';
+    renderDelay();
+    return;
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(ODPT_URL + encodeURIComponent(settings.apiKey), { cache: 'no-store', signal: ctrl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    applyDelay(await res.json());
+  } catch (e) {
+    applyDelay(null, e);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function applyDelay(json, err) {
+  const info = Array.isArray(json) ? json.find(x => x['odpt:railway'] === NAMBOKU) : null;
+  if (err || !info) {
+    delay.state = 'error';
+    console.warn('遅延情報を取得できません', err || '南北線の情報が見つからない');
+  } else if (isNormal(info)) {
+    delay.state = 'ok';
+    delay.text = '';
+    delay.checkedAt = now();
+  } else {
+    delay.state = 'delay';
+    const status = jaText(info['odpt:trainInformationStatus']);
+    const text = jaText(info['odpt:trainInformationText']);
+    delay.text = (status ? '【' + status + '】' : '') + text;
+    delay.checkedAt = now();
+  }
+  renderDelay();
+}
+
+function renderDelay() {
+  const delayed = delay.state === 'delay';
+  document.body.classList.toggle('delayed', delayed);
+  if (!delayed) $('delayPanel').classList.remove('open');
+  $('delayText').textContent = delay.text;
+  // 取得の状況は設定画面にだけ表示する
+  const msg = { nokey: 'APIキー未設定', error: '遅延情報を取得できません', ok: '南北線 平常', delay: '南北線 遅延中・予測は目安', init: '確認中' };
+  $('netStatus').textContent = msg[delay.state] || '';
+  $('checked').textContent = delay.checkedAt ? '（' + hm(delay.checkedAt) + ' 確認）' : '';
+}
+
+// 画面に表示されている間だけ3分ごとに取得する。画面に戻ったときはすぐ取得する
+function startDelayWatch() {
+  stopDelayWatch();
+  fetchDelay();
+  delayTimer = setInterval(fetchDelay, DELAY_INTERVAL_MS);
+}
+function stopDelayWatch() {
+  if (delayTimer) clearInterval(delayTimer);
+  delayTimer = null;
+}
+
+// ===================== 画面を消さない（Wake Lock） =====================
+let wakeLock = null;
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return; // 対応していない場合は何もしない
+  if (wakeLock && !wakeLock.released) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* 拒否された場合も何もしない */ }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    requestWakeLock(); // 画面が裏に回ると Wake Lock は自動で解除されるので取り直す
+    startDelayWatch();
+  } else {
+    stopDelayWatch();
+  }
+});
+// 一部の環境ではタップしないと Wake Lock が取れないため、タップ時にも試す
+document.addEventListener('click', requestWakeLock);
+
+// ===================== 設定画面 =====================
+// 設定画面で編集中の値（保存するまで本体の設定は変えない）
+const draft = {};
+const steppers = document.querySelectorAll('.stepper');
+
+function showStepper(st) { st.querySelector('output').textContent = draft[st.dataset.key]; }
+
+function openSettings() {
+  for (const st of steppers) {
+    draft[st.dataset.key] = Number(settings[st.dataset.key]) || 0;
+    showStepper(st);
+  }
+  $('setSwap').checked = !!settings.swap;
+  $('setKey').value = settings.apiKey;
+  $('settings').classList.add('open');
+}
+function closeSettings() { $('settings').classList.remove('open'); }
+
+// ▲▼ボタン: 1回押すと1秒、押し続けると少しずつ速く変わる
+for (const st of steppers) {
+  for (const btn of st.querySelectorAll('button')) {
+    let timer = null;
+    const stepOnce = () => {
+      const k = st.dataset.key;
+      const max = Number(st.dataset.max || 600); // 下限はどれも0秒
+      draft[k] = Math.min(max, Math.max(0, draft[k] + Number(btn.dataset.step)));
+      showStepper(st);
+    };
+    const stop = () => { clearTimeout(timer); timer = null; };
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      stepOnce();
+      let delayMs = 400;
+      const repeat = () => { stepOnce(); delayMs = Math.max(50, delayMs * 0.8); timer = setTimeout(repeat, delayMs); };
+      timer = setTimeout(repeat, delayMs);
+    });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
+    btn.addEventListener('contextmenu', e => e.preventDefault()); // 長押しでメニューが出ないように
+  }
+}
+
+$('gear').addEventListener('click', openSettings);
+$('setCancel').addEventListener('click', closeSettings);
+$('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('open'));
+$('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
+$('setSave').addEventListener('click', () => {
+  settings = {
+    offsetO: draft.offsetO,
+    offsetI: draft.offsetI,
+    holdSec: draft.holdSec,
+    swap: $('setSwap').checked,
+    apiKey: $('setKey').value.trim(),
+  };
+  saveSettings(settings);
+  closeSettings();
+  render();
+  startDelayWatch();
+});
+
+// ===================== デバッグ機能（URL に ?debug を付けると表示） =====================
+const debugOn = new URLSearchParams(location.search).has('debug');
+if (debugOn) {
+  $('debug').classList.add('on');
+  document.body.classList.add('debug');
+  const toLocalInput = t => ymd(new Date(t)) + 'T' + hms(t);
+  const setClock = t => { clockOffsetMs = t - Date.now(); render(); };
+  $('dbgTime').value = toLocalInput(now());
+  $('dbgSet').addEventListener('click', () => {
+    const t = new Date($('dbgTime').value).getTime();
+    if (Number.isFinite(t)) setClock(t);
+  });
+  $('dbgReset').addEventListener('click', () => { clockOffsetMs = 0; render(); });
+  // よく使う場面へすぐ飛ぶボタン
+  const presets = [
+    ['平日 朝', '2026-10-28T07:59:30'],
+    ['到着直前', '2026-10-28T08:00:55'],
+    ['土曜 昼', '2026-10-31T12:00:00'],
+    ['祝日(文化の日)', '2026-11-03T09:00:00'],
+    ['金曜 日付またぎ', '2026-10-30T23:59:30'],
+    ['平日 終電後', '2026-10-29T00:44:00'],
+    ['日曜 終電後→月曜', '2026-11-02T00:30:00'],
+    ['年末 12/30', '2026-12-30T10:00:00'],
+  ];
+  for (const [label, v] of presets) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('click', () => { $('dbgTime').value = v; setClock(new Date(v).getTime()); });
+    $('dbgPresets').appendChild(b);
+  }
+  $('dbgMock').addEventListener('change', e => { mockMode = e.target.value; fetchDelay(); });
+}
+
+// ===================== 起動 =====================
+if (TIMETABLE.generated) {
+  $('ttDateFull').textContent = '時刻表データ ' + TIMETABLE.generated + ' 取得';
+}
+renderDelay();
+tick();
+requestWakeLock();
+if (document.visibilityState === 'visible') startDelayWatch();
+</script>
+</body>
+</html>
