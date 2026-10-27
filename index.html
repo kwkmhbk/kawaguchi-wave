@@ -91,8 +91,6 @@
   .col-I .col-head { background: var(--up); }
   .col-O .col-head { background: var(--down); }
   .col-body { flex: none; display: flex; flex-direction: column; text-align: center; padding: 4px 4px 2px; }
-  .first { font-size: 12px; color: var(--led-green); line-height: 14px; }
-  .first:empty { display: none; }
   /* 「前駅 → 当駅 → 店」の位置表示 */
   .track { display: flex; align-items: flex-end; gap: 4px; padding: 0 6px 2px; min-height: 41px; font-size: 18px; color: var(--led-green); white-space: nowrap; }
   /* 駅名・店の上に、着く時刻（分:秒）を小さく出す。線路は駅名の高さにそろえる */
@@ -110,9 +108,12 @@
   .track[data-phase="walk"] .person, .track[data-phase="store"] .person { display: block; }
   .track[data-phase="store"] .person { color: var(--led-red); }
   .track .tag { display: none; font-size: 15px; }
-  .track.first > :not(.tag) { display: none; }
-  .track.first { justify-content: center; align-items: center; }
-  .track.first .tag { display: block; }
+  /* 終電後は、位置表示の代わりに文章（.tag）だけを出す */
+  .track.msg > :not(.tag) { display: none; }
+  .track.msg { justify-content: center; align-items: center; }
+  .track.msg .tag { display: block; }
+  .col.ended .sec { color: var(--led-dim); text-shadow: none; }
+  .next li.none { justify-content: center; font-size: 16px; color: var(--led-dim); }
   /* 高さは3桁の秒数に合わせて固定する（秒⇔分:秒を切り替えても、上と下の高さが変わらないように） */
   /* --f: カウントの数字（3桁のとき）の大きさ。一覧を1行にしたときは大きくする */
   :root { --f: min(25vh, 14.4vw); }
@@ -158,7 +159,6 @@
   .next .t { color: var(--led-white); white-space: nowrap; }
   .next .s { color: var(--led-white); white-space: nowrap; }
   .next small { font-size: 13px; margin-left: 3px; color: var(--led-dim); text-shadow: none; }
-  .next .next-day { color: var(--led-green); font-size: 15px; margin: 0 4px 0 0; }
   .next .pre { margin: 0 4px 0 0; }
 
   /* 設定画面 */
@@ -231,7 +231,6 @@
     <section class="col col-I board" id="colI">
       <div class="col-head">上り<small>赤羽岩淵・目黒方面</small></div>
       <div class="col-body">
-        <div class="first led"></div>
         <div class="track">
           <span class="pt led">前駅</span>
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
@@ -247,7 +246,6 @@
     <section class="col col-O board" id="colO">
       <div class="col-head">下り<small>浦和美園方面</small></div>
       <div class="col-body">
-        <div class="first led"></div>
         <div class="track">
           <span class="pt led">前駅</span>
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
@@ -956,30 +954,27 @@ function serviceDateOf(t) {
 }
 
 // ===================== 波の計算 =====================
-// 方向 dir の波のうち、到着からカウントアップ中（holdSec 秒まで）のものと、これから来るものを count 個返す
+// 方向 dir の波のうち、到着からカウントアップ中（holdSec 秒まで）のものと、これから来るものを count 個返す。
+// 表示するのはその日（今の運行日）の電車だけ。終電後は空になり、朝4時に運行日が変わると次の日の電車になる
 function wavesOf(t, dir, count) {
   const holdSec = Math.max(0, Number(settings.holdSec) || 0);
   const from = t - (holdSec + 1) * 1000;
   const offset = (Number(settings.offset) || 0) * 1000;
   const walk = (Number(settings.walk) || 0) * 1000;
-  const sd = serviceDateOf(from);
+  const day = serviceDateOf(t);
+  const holiday = isHolidayDiagram(day);
+  const base = day.getTime();
   const out = [];
-  // 前日・当日・翌日の運行日を順に見れば、終電後や日付またぎもそのまま扱える
-  for (let k = -1; k <= 2 && out.length < count; k++) {
-    const day = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + k);
-    const holiday = isHolidayDiagram(day);
-    const base = day.getTime();
-    for (const [min, d, dest, no, estSec] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
-      if (d !== dir) continue;
-      // 秒補正テーブルにある列車: 推定した到着時刻（秒まで）＋歩行時間
-      // それ以外の列車:           時刻表の時刻（秒は00）＋オフセット
-      const est = estSec != null;
-      // trainAt: 電車が駅に着く時刻（推定できない列車は時刻表の分＋00秒）、at: 波（お客さんが店に着く時刻）
-      const trainAt = est ? base + estSec * 1000 : base + min * 60000;
-      const at = trainAt + (est ? walk : offset);
-      if (at > from) out.push({ at, trainAt, dir, dest, no, holiday, est });
-      if (out.length >= count) break;
-    }
+  for (const [min, d, dest, no, estSec] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
+    if (d !== dir) continue;
+    // 秒補正テーブルにある列車: 推定した到着時刻（秒まで）＋歩行時間
+    // それ以外の列車:           時刻表の時刻（秒は00）＋オフセット
+    const est = estSec != null;
+    // trainAt: 電車が駅に着く時刻（推定できない列車は時刻表の分＋00秒）、at: 波（お客さんが店に着く時刻）
+    const trainAt = est ? base + estSec * 1000 : base + min * 60000;
+    const at = trainAt + (est ? walk : offset);
+    if (at > from) out.push({ at, trainAt, dir, dest, no, holiday, est });
+    if (out.length >= count) break;
   }
   return out;
 }
@@ -994,18 +989,9 @@ const RUN_IN_SEC = { O: 150, I: 135 };
 
 // 「前駅 → 当駅 → 店」の表示で、電車とお客さんが今どこにいるかを示す
 //   前駅を出る前: 電車は前駅のそば / 前駅→当駅: 電車が動く / 当駅→店: 人が動く / 店に着いた後: 人が店で赤くなる
-function renderTrack(tr, t, sd, w) {
-  const wsd = serviceDateOf(w.at);
-  const first = wsd.getTime() !== sd.getTime();
-  tr.classList.toggle('first', first);
-  if (first) {
-    // 翌日の始発を待っているときは、位置の代わりに日付を出す
-    const d = new Date(w.trainAt);
-    setText(tr.querySelector('.tag'), (wsd.getMonth() + 1) + '/' + wsd.getDate() + ' ' + (w.holiday ? '土休日' : '平日') + ' 始発 '
-      + d.getHours() + ':' + pad(d.getMinutes()) + '着');
-    return;
-  }
-  // 「当駅」「店」の下に、それぞれに着く時刻（分:秒）を出す。着いた方は赤くする
+function renderTrack(tr, t, w) {
+  tr.classList.remove('msg');
+  // 「当駅」「店」の上に、それぞれに着く時刻（分:秒）を出す。着いた方は赤くする
   const ms = x => { const d = new Date(x); return pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
   const [tmSt, tmShop] = tr.querySelectorAll('.tm-st, .tm-shop');
   setText(tmSt, ms(w.trainAt));
@@ -1031,10 +1017,22 @@ function renderColumn(col, t, sd, dir) {
   const waves = wavesOf(t, dir, LIST_COUNT + 1);
   const q = sel => col.querySelector(sel);
   const w = waves[0];
+  // その日の電車がもうない（終電後）ときは「終了」の表示にする
+  col.classList.toggle('ended', !w);
   if (!w) {
-    q('.track .tag').textContent = '時刻表データなし';
-    q('.track').classList.add('first');
-    q('.sec').textContent = '--';
+    col.classList.remove('arrived');
+    setText(q('.track .tag'), TIMETABLE.weekday.length ? '本日の運行は終了しました' : '時刻表データなし');
+    q('.track').classList.add('msg');
+    q('.label').textContent = '';
+    q('.unit').textContent = '';
+    q('.sec').textContent = '終了';
+    q('.sec').className = 'sec led d4';
+    q('.count').classList.add('only');
+    const ul = q('.next');
+    if (ul.dataset.key !== 'end') {
+      ul.dataset.key = 'end';
+      ul.innerHTML = '<li class="none">この後の電車はありません</li>';
+    }
     return null;
   }
   const remain = Math.ceil((w.at - t) / 1000);
@@ -1068,28 +1066,23 @@ function renderColumn(col, t, sd, dir) {
   countEl.classList.toggle('compact', mode === 'min');
   countEl.classList.toggle('only', mode === 'min' && arrived);
 
-  renderTrack(q('.track'), t, sd, w);
+  renderTrack(q('.track'), t, w);
 
   // 一覧の行は中身が変わったときだけ作り直す（毎秒作り直すとスライド中に位置が戻るため）。文字は毎秒書き換える
   const ul = q('.next');
-  const listKey = waves.length > 1 ? waves[1].at + ':' + waves.length + ':' + sd.getTime() : '';
+  const listKey = waves.length > 1 ? waves[1].at + ':' + waves.length + ':' + sd.getTime() : 'last:' + sd.getTime();
   if (ul.dataset.key !== listKey) {
     ul.dataset.key = listKey;
     ul.textContent = '';
     ul.scrollTop = 0;
+    // 今の電車がその日の最後なら、一覧には電車がないことを出す
+    if (waves.length <= 1) ul.innerHTML = '<li class="none">この後の電車はありません</li>';
     for (const nw of waves.slice(1)) {
       const li = document.createElement('li');
       li.wave = nw;
       // 左: 時刻（駅着か店着）、右: その時刻までの残り時間
       const a = document.createElement('span');
       a.className = 't led';
-      // 今の運行日より後の電車には「翌」を付ける
-      if (serviceDateOf(nw.at).getTime() !== sd.getTime()) {
-        const m = document.createElement('small');
-        m.className = 'next-day';
-        m.textContent = '翌';
-        a.appendChild(m);
-      }
       a.append(document.createElement('b'), document.createElement('small'));
       const b = document.createElement('span');
       b.className = 's led';
@@ -1106,9 +1099,10 @@ function renderColumn(col, t, sd, dir) {
   const listRemain = settings.listRemain;
   for (const li of ul.children) {
     const nw = li.wave;
+    if (!nw) continue;
     const target = store ? nw.at : nw.trainAt;
     const remainSec = Math.max(0, Math.ceil((target - t) / 1000));
-    const [ta, tl] = li.querySelectorAll('.t b, .t small:not(.next-day)');
+    const [ta, tl] = li.querySelectorAll('.t b, .t small');
     const [sa, sl] = li.querySelectorAll('.s b, .s small:not(.pre)');
     setText(ta, hms(target));
     setText(tl, store ? '店着' : '駅着');
