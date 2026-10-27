@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -35,6 +35,7 @@
     font-family: "DotGothic16", "Hiragino Sans", monospace;
     -webkit-user-select: none; user-select: none;
     -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;  /* ダブルタップでズームしない（スライドはできる） */
   }
   /* 画面の高さいっぱいに使う（iPhone で下にすき間が残らないよう、使えれば dvh を使う） */
   #app {
@@ -140,7 +141,7 @@
   /* 位置表示（アイコン）は少し上に、カウントは気持ち下に置く。
      間を16px空けると、中央寄せで位置表示が8px上・カウントが8px下に動く。位置表示はさらに8px上げる */
   body.rows1 .track { margin-bottom: 16px; position: relative; top: -8px; }
-  body.rows1 .next { flex: none; height: 46px; margin-bottom: 3px; }
+  body.rows1 .next { flex: none; height: 52px; margin-bottom: 3px; }
   .col.arrived .label, .col.arrived .sec, .col.arrived .unit { color: var(--led-red); }
   .col.arrived .label { animation: blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: .25; } }
@@ -156,8 +157,9 @@
   .next li { display: flex; justify-content: space-between; gap: 6px; height: var(--row, 59px); align-items: center; padding: 0 2px;
     border-bottom: 1px dashed #263038; font-size: 26px; font-variant-numeric: tabular-nums; }
   .next b { font-weight: normal; }
-  .next .t { color: var(--led-white); white-space: nowrap; }
-  .next .s { color: var(--led-white); white-space: nowrap; }
+  /* 左右それぞれ行の半分ずつを受け持つ（タップで左右どちらを押したかを、押した部品で判断するため） */
+  .next .t { flex: 1; color: var(--led-white); white-space: nowrap; }
+  .next .s { flex: 1; text-align: right; color: var(--led-white); white-space: nowrap; }
   .next small { font-size: 13px; margin-left: 3px; color: var(--led-dim); text-shadow: none; }
   .next .pre { margin: 0 4px 0 0; }
 
@@ -174,7 +176,7 @@
   .set-bar button.primary { background: #1f6fb2; border-color: #2a83cc; font-weight: 600; }
   /* 横向きでは左（時間）のカードを広めにして2枚並べる。幅が狭いときは縦に並べる */
   .set-body { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
-  @media (max-width: 560px) { .set-body { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) and (orientation: landscape) { .set-body { grid-template-columns: 1fr; } }  /* 縦向きは画面を回して横幅を確保するので対象外 */
   .card { background: #14181d; border: 1px solid #262c33; border-radius: 12px; padding: 4px 12px; }
   .card h3 { margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: #8a96a3; letter-spacing: .05em; }
   .row { display: flex; align-items: center; gap: 10px; min-height: 56px; border-top: 1px solid #222830; }
@@ -208,6 +210,23 @@
   .key input { flex: 1; min-width: 0; padding: 9px 10px; font-size: 16px; background: #0b0d10; color: #fff; border: 1px solid #3a424b; border-radius: 10px;
     -webkit-user-select: text; user-select: text; }
   .key button { width: 64px; font-size: 14px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
+
+  /* 縦向き（iPhone を縦向きロックしたまま横に持ったとき）は、画面全体を90度回して横向きと同じレイアウトで出す。
+     iPhone の Web アプリは画面の向きを固定できないための代わり。
+     回すと縦と横が入れ替わるので、文字の大きさの基準（vh / vw）も入れ替える */
+  @media (orientation: portrait) {
+    :root { --f: min(25vw, 14.4vh); }
+    body.rows1 { --f: min(35vw, 19.4vh); }
+    body:not(.debug) #app, #settings, #delayPanel {
+      position: fixed; top: 0; left: 0; right: auto; bottom: auto;
+      width: 100vh; width: 100dvh; height: 100vw;
+      transform-origin: top left;
+      transform: rotate(90deg) translateY(-100%);  /* ホームボタンが右になる持ち方 */
+    }
+    body.rot-ccw:not(.debug) #app, body.rot-ccw #settings, body.rot-ccw #delayPanel {
+      transform: rotate(-90deg) translateX(-100%);  /* ホームボタンが左になる持ち方 */
+    }
+  }
   #debug button { padding: 10px; font-size: 16px; border-radius: 10px; border: 1px solid #555; background: #222; color: #fff; font-family: inherit; }
 
   /* デバッグ用パネル（URL の末尾に ?debug を付けたときだけ表示） */
@@ -319,6 +338,10 @@
       <div class="row">
         <div class="name">一覧の行数<small>1行にするとカウントが大きくなる</small></div>
         <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
+      </div>
+      <div class="row">
+        <div class="name">回転の向き<small>縦向きロックで横に持つときのホームボタンの位置</small></div>
+        <div class="seg" id="setRot"><button data-rot="cw">右</button><button data-rot="ccw">左</button></div>
       </div>
       <div class="row wide">
         <div class="name">ODPT の APIキー<small>この端末の中にだけ保存。空欄なら遅延検知は止まります</small></div>
@@ -910,7 +933,8 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 const DEFAULTS = { offset: 60, walk: 100, holdSec: 60, swap: false, apiKey: '',
-  countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
+  countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1, // listRows: 下の一覧の行数（1 か 2）
+  rotate: 'cw' }; // rotate: 縦向きのとき画面を回す向き（'cw'=ホームボタン右 / 'ccw'=ホームボタン左）
 
 function loadSettings() {
   try {
@@ -1133,6 +1157,7 @@ function render() {
   $('cols').classList.toggle('swap', !!settings.swap);
   const rows = Number(settings.listRows) === 1 ? 1 : 2;
   document.body.classList.toggle('rows1', rows === 1);
+  document.body.classList.toggle('rot-ccw', settings.rotate === 'ccw');
 
   renderColumn($('colI'), t, sd, 'I');
   renderColumn($('colO'), t, sd, 'O');
@@ -1258,6 +1283,8 @@ document.addEventListener('visibilitychange', () => {
 });
 // 一部の環境ではタップしないと Wake Lock が取れないため、タップ時にも試す
 document.addEventListener('click', requestWakeLock);
+// 2本指で広げるズームを止める（iPhone の Safari 用）
+for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault());
 
 // 一覧をスライドしたあと、しばらく何も触らなければ一番上（次の電車）に戻す
 const LIST_RESET_MS = 10 * 1000;
@@ -1279,8 +1306,8 @@ for (const ul of document.querySelectorAll('.next')) {
 $('cols').addEventListener('click', e => {
   const ul = e.target.closest('.next');
   if (ul) {
-    const r = ul.getBoundingClientRect();
-    if (e.clientX < r.left + r.width / 2) {
+    // 画面を90度回しているときも正しく判断できるよう、座標ではなく押した部品（左の .t か右の .s）で判断する
+    if (!e.target.closest('.s')) {
       settings.listTarget = settings.listTarget === 'store' ? 'train' : 'store';
     } else {
       // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
@@ -1309,6 +1336,8 @@ function openSettings() {
   $('setSwap').checked = !!settings.swap;
   draft.listRows = Number(settings.listRows) === 1 ? 1 : 2;
   showRows();
+  draft.rotate = settings.rotate === 'ccw' ? 'ccw' : 'cw';
+  showRot();
   $('setKey').value = settings.apiKey;
   $('setKey').type = 'password';
   $('keyShow').textContent = '表示';
@@ -1355,6 +1384,17 @@ $('setRows').addEventListener('click', e => {
   showRows();
 });
 
+// 縦向きロック時に画面を回す向きの選択
+function showRot() {
+  for (const b of $('setRot').children) b.classList.toggle('on', b.dataset.rot === draft.rotate);
+}
+$('setRot').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  draft.rotate = b.dataset.rot;
+  showRot();
+});
+
 // APIキーの文字を見せる／隠す
 $('keyShow').addEventListener('click', () => {
   const show = $('setKey').type === 'password';
@@ -1368,6 +1408,7 @@ $('setSave').addEventListener('click', () => {
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
     listRows: draft.listRows,
+    rotate: draft.rotate,
     countMode: settings.countMode,
     listTarget: settings.listTarget,
     listRemain: settings.listRemain,
