@@ -62,8 +62,9 @@
 
   /* 上部の帯: 駅名・遅延表示・時計・ダイヤ・設定 */
   #head { display: flex; align-items: center; gap: 10px; padding: 2px 8px; }
-  #station { font-size: 18px; line-height: 1; white-space: nowrap; }
-  #station small { display: block; font-size: 8px; color: var(--led-dim); letter-spacing: .1em; margin-top: 2px; }
+  /* 駅名を押すと設定画面が開く */
+  #station { font-family: inherit; font-size: 18px; line-height: 1; white-space: nowrap; background: none; border: 0; padding: 6px 4px;
+    color: var(--led-white); position: relative; z-index: 1; cursor: pointer; }
   #headMid { flex: 1; text-align: center; }
   /* 遅延中だけ出す表示。タップすると運行情報の文章を開く */
   #delayBadge {
@@ -79,10 +80,6 @@
   #delayPanel .box small { display: block; margin-top: 8px; font-size: 12px; color: #999; }
   #clock { font-size: 22px; color: var(--led-amber); font-variant-numeric: tabular-nums; }
   #dayType { font-size: 13px; color: var(--led-green); white-space: nowrap; }
-  #gear {
-    font-family: inherit; background: #15191e; border: 1px solid var(--frame); color: var(--led-dim);
-    font-size: 12px; border-radius: 4px; padding: 4px 8px; position: relative; z-index: 1;
-  }
 
   /* 左右2列 */
   #cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; min-height: 0; }
@@ -97,21 +94,18 @@
   .first:empty { display: none; }
   .dest { font-size: 20px; color: var(--led-green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 高さは3桁の秒数に合わせて固定する（秒⇔分:秒を切り替えても、上と下の高さが変わらないように） */
+  /* --f: カウントの数字（3桁のとき）の大きさ。一覧を1行にしたときは大きくする */
+  :root { --f: min(25vh, 14.4vw); }
+  body.rows1 { --f: min(35vh, 19.4vw); }
   .count { display: flex; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 6px; white-space: nowrap;
-    height: calc(min(28vh, 16vw) * 1.02); overflow: hidden; }
+    height: calc(var(--f) * 1.02); overflow: hidden; }
   .dest small { font-size: 12px; margin-right: 8px; }
   /* 桁数が変わっても「あと／到着」「秒」の位置が動かないように、数字の欄は幅を固定して中央寄せにする。
      4桁・5桁のときは文字を小さくして、欄の幅（約3桁分）をそろえる */
   .label { font-size: 20px; width: 2.2em; text-align: right; color: var(--led-amber); }
-  .sec { display: inline-block; width: 3ch; text-align: center; font-size: min(28vh, 16vw); line-height: 1.02; color: var(--led-amber); font-variant-numeric: tabular-nums; }
-  .sec.d4 { width: 4ch; font-size: min(21vh, 12vw); } .sec.d5 { width: 5ch; font-size: min(16.8vh, 9.6vw); }
-  .sec.d6 { width: 6ch; font-size: min(14vh, 8vw); } .sec.d7 { width: 7ch; font-size: min(12vh, 6.85vw); }
-  /* 一覧を1行にしたときは、空いた分だけカウントの部分を高くして数字を大きくする。
-     列の幅に「あと」「数字」「秒」が1行で収まる大きさにし、4桁以上は欄の幅がそろうように小さくする */
-  body.rows1 .count { height: calc(min(39vh, 21.5vw) * 1.02); }
-  body.rows1 .sec { font-size: min(39vh, 21.5vw); }
-  body.rows1 .sec.d4 { font-size: min(29.25vh, 16.1vw); } body.rows1 .sec.d5 { font-size: min(23.4vh, 12.9vw); }
-  body.rows1 .sec.d6 { font-size: min(19.5vh, 10.75vw); } body.rows1 .sec.d7 { font-size: min(16.7vh, 9.2vw); }
+  .sec { display: inline-block; width: 3ch; text-align: center; font-size: var(--f); line-height: 1.02; color: var(--led-amber); font-variant-numeric: tabular-nums; }
+  .sec.d4 { width: 4ch; font-size: calc(var(--f) * 3 / 4); } .sec.d5 { width: 5ch; font-size: calc(var(--f) * 3 / 5); }
+  .sec.d6 { width: 6ch; font-size: calc(var(--f) * 3 / 6); } .sec.d7 { width: 7ch; font-size: calc(var(--f) * 3 / 7); }
   body.rows1 .label { font-size: 24px; } body.rows1 .unit { font-size: 20px; }
   .unit { font-size: 16px; width: 1.2em; text-align: left; color: var(--led-amber); }
   .at { font-size: 16px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -198,11 +192,10 @@
 <body>
 <div id="app">
   <div id="head" class="board">
-    <div id="station" class="led">川口元郷<small>KAWAGUCHI-MOTOGO</small></div>
+    <button id="station" class="led">川口元郷</button>
     <div id="headMid"><button id="delayBadge">南北線 遅延中・予測は目安</button></div>
     <div id="clock" class="led">--:--:--</div>
     <div id="dayType" class="led"></div>
-    <button id="gear">設定</button>
   </div>
 
   <div id="cols">
@@ -876,7 +869,7 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // walk: 電車が着いてから、お客さんが店に着くまでの歩行時間（上り・下り共通。同じホームのため）
 // offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒）
-// listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒）
+// listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 const DEFAULTS = { offset: 60, walk: 30, holdSec: 30, swap: false, apiKey: '',
   countMode: 'sec', listTarget: 'train', listRemain: 'sec', listRows: 2 }; // listRows: 下の一覧の行数（1 か 2）
 
@@ -1037,7 +1030,7 @@ function renderColumn(col, t, sd, dir) {
   }
   // 左側のタッチで「駅着」⇔「店着」、右側のタッチで残り時間の「秒」⇔「分:秒」を切り替える
   const store = settings.listTarget === 'store';
-  const listMs = settings.listRemain === 'ms';
+  const listRemain = settings.listRemain;
   for (const li of ul.children) {
     const nw = li.wave;
     const target = store ? nw.at : nw.trainAt;
@@ -1046,8 +1039,9 @@ function renderColumn(col, t, sd, dir) {
     const [sa, sl] = li.querySelectorAll('.s b, .s small:not(.pre)');
     setText(ta, hms(target));
     setText(tl, store ? '店着' : '駅着');
-    setText(sa, listMs ? fmtDur(remainSec) : String(remainSec));
-    setText(sl, listMs ? '' : '秒');
+    // 残り時間: 秒 /「分:秒」/ 分（秒は切り捨て。一覧の電車は60秒以上先なので0分にはならない）
+    setText(sa, listRemain === 'ms' ? fmtDur(remainSec) : listRemain === 'min' ? String(Math.floor(remainSec / 60)) : String(remainSec));
+    setText(sl, listRemain === 'ms' ? '' : listRemain === 'min' ? '分' : '秒');
   }
   return { at: w.at, arrived };
 }
@@ -1208,7 +1202,8 @@ $('cols').addEventListener('click', e => {
     if (e.clientX < r.left + r.width / 2) {
       settings.listTarget = settings.listTarget === 'store' ? 'train' : 'store';
     } else {
-      settings.listRemain = settings.listRemain === 'ms' ? 'sec' : 'ms';
+      // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
+      settings.listRemain = { sec: 'ms', ms: 'min', min: 'sec' }[settings.listRemain] || 'sec';
     }
   } else {
     settings.countMode = settings.countMode === 'ms' ? 'sec' : 'ms';
@@ -1263,7 +1258,7 @@ for (const st of steppers) {
   }
 }
 
-$('gear').addEventListener('click', openSettings);
+$('station').addEventListener('click', openSettings);
 $('setCancel').addEventListener('click', closeSettings);
 $('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('open'));
 $('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
