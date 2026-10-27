@@ -126,33 +126,54 @@
     border-bottom: 1px dashed #263038; font-size: 26px; font-variant-numeric: tabular-nums; }
   .next b { font-weight: normal; }
   .next .t { color: var(--led-white); white-space: nowrap; }
-  .next .s { color: var(--led-green); white-space: nowrap; }
+  .next .s { color: var(--led-white); white-space: nowrap; }
   .next small { font-size: 13px; margin-left: 3px; color: var(--led-dim); text-shadow: none; }
   .next .next-day { color: var(--led-green); font-size: 15px; margin: 0 4px 0 0; }
   .next .pre { margin: 0 4px 0 0; }
 
   /* 設定画面 */
-  #settings { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.95); display: none; overflow-y: auto;
-    padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px)
-             calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px);
-    font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  #settings { position: fixed; inset: 0; z-index: 10; background: #0b0d10; display: none; overflow-y: auto;
+    padding: 0 calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
+    font-family: -apple-system, "Hiragino Sans", sans-serif; color: #e8e8e8; -webkit-user-select: none; user-select: none; }
   #settings.open { display: block; }
-  #settings h2 { margin: 0 0 12px; font-size: 20px; }
-  #settings .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
-  #settings label, #settings .field { display: block; margin-bottom: 14px; font-size: 14px; color: #ccc; }
-  #settings input:not([type=checkbox]) { display: block; width: 100%; margin-top: 4px; padding: 8px; font-size: 17px;
-    background: #111; color: #fff; border: 1px solid #444; border-radius: 8px; -webkit-user-select: text; user-select: text; }
-  #settings input[type=checkbox] { width: 22px; height: 22px; vertical-align: middle; margin-right: 8px; }
-  #settings .hint { font-size: 12px; color: #888; margin-top: 4px; }
-  #settings .notes { font-size: 12px; color: #888; line-height: 1.6; margin: 4px 0 12px; }
-  #settings .state { font-size: 14px; color: #ddd; margin: 0 0 12px; padding: 8px 10px; background: #111; border: 1px solid #333; border-radius: 8px; }
+  /* 上の帯（キャンセル・保存）はスクロールしても常に見えるようにする */
+  .set-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 8px) 0 8px; background: #0b0d10; border-bottom: 1px solid #23282e; }
+  .set-bar h2 { flex: 1; margin: 0; font-size: 18px; text-align: center; }
+  .set-bar button { min-width: 108px; height: 40px; font-size: 16px; border-radius: 10px; border: 1px solid #444; background: #1c2026; color: #fff; font-family: inherit; }
+  .set-bar button.primary { background: #1f6fb2; border-color: #2a83cc; font-weight: 600; }
+  /* 横向きでは左（時間）のカードを広めにして2枚並べる。幅が狭いときは縦に並べる */
+  .set-body { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+  @media (max-width: 560px) { .set-body { grid-template-columns: 1fr; } }
+  .card { background: #14181d; border: 1px solid #262c33; border-radius: 12px; padding: 4px 12px; }
+  .card h3 { margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: #8a96a3; letter-spacing: .05em; }
+  .row { display: flex; align-items: center; gap: 10px; min-height: 56px; border-top: 1px solid #222830; }
+  .card h3 + .row { border-top: 0; }
+  .row .name { flex: 1; min-width: 0; font-size: 15px; }
+  .row .name small { display: block; font-size: 11px; color: #8a96a3; margin-top: 2px; }
+  .row.wide { flex-wrap: wrap; padding: 8px 0; }
+  .row.wide .name { flex-basis: 100%; }
+  #settings .state { font-size: 13px; color: #cfd6dd; padding: 10px 0; border-top: 1px solid #222830; }
+  #settings .notes { font-size: 11px; color: #7d8792; line-height: 1.6; margin: 10px 2px 0; }
   /* 上下の矢印で数値を変える部品 */
-  .stepper { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-  .stepper button { width: 56px; height: 44px; font-size: 20px; border-radius: 8px; border: 1px solid #555; background: #222; color: #fff; touch-action: manipulation; }
-  .stepper output { min-width: 70px; text-align: center; font-size: 24px; color: #fff; font-variant-numeric: tabular-nums; }
-  .btns { display: flex; gap: 10px; }
-  .btns button, #debug button { flex: 1; padding: 10px; font-size: 16px; border-radius: 10px; border: 1px solid #555; background: #222; color: #fff; font-family: inherit; }
-  .btns button.primary { background: #1e4f70; border-color: #2c6d99; }
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .stepper button { width: 50px; height: 44px; font-size: 18px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff;
+    touch-action: manipulation; font-family: inherit; }
+  .stepper button:active { background: #33404d; }
+  .stepper .val { min-width: 64px; text-align: center; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .stepper .val small { font-size: 12px; color: #8a96a3; margin-left: 2px; }
+  /* オン・オフのスイッチ */
+  .switch { position: relative; width: 56px; height: 32px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; }
+  .switch span { position: absolute; inset: 0; border-radius: 16px; background: #3a424b; transition: background .2s; pointer-events: none; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .switch input:checked + span { background: #2a9d5c; }
+  .switch input:checked + span::after { transform: translateX(24px); }
+  .key { display: flex; gap: 6px; width: 100%; margin-top: 6px; }
+  .key input { flex: 1; min-width: 0; padding: 9px 10px; font-size: 16px; background: #0b0d10; color: #fff; border: 1px solid #3a424b; border-radius: 10px;
+    -webkit-user-select: text; user-select: text; }
+  .key button { width: 64px; font-size: 14px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
+  #debug button { padding: 10px; font-size: 16px; border-radius: 10px; border: 1px solid #555; background: #222; color: #fff; font-family: inherit; }
 
   /* デバッグ用パネル（URL の末尾に ?debug を付けたときだけ表示） */
   #debug { display: none; padding: 8px; border: 1px dashed #c06; border-radius: 10px; font-size: 13px; color: #f8bbd0; font-family: -apple-system, sans-serif; }
@@ -224,43 +245,49 @@
 </div>
 
 <div id="settings">
-  <h2>設定</h2>
-  <div class="state">遅延情報: <span id="netStatus"></span><span id="checked"></span>　※遅延時は表示が不正確になります</div>
-  <div class="grid">
-    <div class="field">上り（赤羽岩淵方面）のオフセット（秒）
-      <div class="stepper" data-key="offsetI"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
-    </div>
-    <div class="field">下り（浦和美園方面）のオフセット（秒）
-      <div class="stepper" data-key="offsetO"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
-    </div>
+  <div class="set-bar">
+    <button id="setCancel">キャンセル</button>
+    <h2>設定</h2>
+    <button id="setSave" class="primary">保存</button>
   </div>
-  <div class="notes">オフセット ＝ 到着の秒数（0〜59秒）＋ ホームから店まで歩く時間。初期値は60秒。到着の秒を推定できなかった列車に使います。矢印を押し続けると速く変わります。</div>
-  <div class="grid">
-    <div class="field">上り（赤羽岩淵方面）の歩行時間（秒）
-      <div class="stepper" data-key="walkI"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
-    </div>
-    <div class="field">下り（浦和美園方面）の歩行時間（秒）
-      <div class="stepper" data-key="walkO"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
-    </div>
+  <div class="set-body">
+    <section class="card">
+      <h3>時間（上り・下り共通）</h3>
+      <div class="row">
+        <div class="name">歩行時間<small>駅着から店着まで</small></div>
+        <div class="stepper" data-key="walk"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
+      </div>
+      <div class="row">
+        <div class="name">到着後カウント<small>「到着」を数え続ける</small></div>
+        <div class="stepper" data-key="holdSec" data-max="300"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
+      </div>
+      <div class="row">
+        <div class="name">オフセット<small>秒を推定できない列車用</small></div>
+        <div class="stepper" data-key="offset"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
+      </div>
+    </section>
+    <section class="card">
+      <h3>表示・遅延情報</h3>
+      <div class="row">
+        <div class="name">左右を入れ替える<small>オンにすると、左に下り・右に上り</small></div>
+        <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
+      </div>
+      <div class="row wide">
+        <div class="name">ODPT の APIキー<small>この端末の中にだけ保存。空欄なら遅延検知は止まります</small></div>
+        <div class="key">
+          <input type="password" id="setKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="未設定">
+          <button id="keyShow">表示</button>
+        </div>
+      </div>
+      <div class="state">遅延情報: <span id="netStatus"></span><span id="checked"></span></div>
+    </section>
   </div>
-  <div class="notes">歩行時間 ＝ 電車が到着してから、お客さんが店に着くまでの時間。初期値は30秒。到着の秒を推定してある列車（今の時刻表では全列車）は、推定到着時刻＋歩行時間で計算します。オフセットは推定できなかった列車にだけ使います。</div>
-  <div class="field">到着後にカウントアップする時間（秒）
-    <div class="stepper" data-key="holdSec" data-max="300"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
-    <div class="hint">0秒になったら「到着」と表示して 0, 1, 2… と数え、この秒数まで数えたら次の波に切り替えます。初期値は30秒。</div>
-  </div>
-  <label>ODPT の APIキー
-    <input type="password" id="setKey" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <div class="hint">この端末の中（localStorage）にだけ保存。空欄なら遅延検知は止まります。</div>
-  </label>
-  <label><input type="checkbox" id="setSwap">左右を入れ替える（左に下り、右に上り）</label>
   <div class="notes">
-    遅延検知は東京メトロ南北線の運行情報を使っています。5分以上の遅れが対象なので、小さな遅れは検知できません。
+    ▲▼は押し続けると速く変わります。初期値: 歩行時間30秒、到着後カウント30秒、オフセット60秒。
+    歩行時間 ＝ 電車が駅に着いてから、お客さんが店に着くまでの時間。同じホームなので上り・下り共通です。<br>
+    遅延時は表示が不正確になります。遅延検知は東京メトロ南北線の運行情報を使っています。5分以上の遅れが対象なので、小さな遅れは検知できません。
     埼玉高速鉄道の区間だけで起きた遅れは、南北線の情報に出ないことがあります。<br>
     時刻表・運行情報: 公共交通オープンデータセンター（ODPT）/ Mini Tokyo 3D。<span id="ttDateFull"></span>
-  </div>
-  <div class="btns">
-    <button id="setCancel">閉じる</button>
-    <button id="setSave" class="primary">保存</button>
   </div>
 </div>
 
@@ -830,15 +857,21 @@ const HOLIDAY_LAST_YEAR = 2027;
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
 // holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
-// walkO / walkI: 秒補正テーブルにある列車で使う、ホームから店までの歩行時間（方向別）
+// walk: 電車が着いてから、お客さんが店に着くまでの歩行時間（上り・下り共通。同じホームのため）
+// offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒）
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒）
-const DEFAULTS = { offsetO: 60, offsetI: 60, walkO: 30, walkI: 30, holdSec: 30, swap: false, apiKey: '',
+const DEFAULTS = { offset: 60, walk: 30, holdSec: 30, swap: false, apiKey: '',
   countMode: 'sec', listTarget: 'train', listRemain: 'sec' };
 
 function loadSettings() {
   try {
-    return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    // 以前の方向別の設定（offsetO / walkO など）が残っていれば、下りの値を引き継ぐ
+    if (saved.offset == null && saved.offsetO != null) saved.offset = saved.offsetO;
+    if (saved.walk == null && saved.walkO != null) saved.walk = saved.walkO;
+    for (const k of ['offsetO', 'offsetI', 'walkO', 'walkI']) delete saved[k];
+    return Object.assign({}, DEFAULTS, saved);
   } catch (e) {
     return Object.assign({}, DEFAULTS);
   }
@@ -877,8 +910,8 @@ function serviceDateOf(t) {
 function wavesOf(t, dir, count) {
   const holdSec = Math.max(0, Number(settings.holdSec) || 0);
   const from = t - (holdSec + 1) * 1000;
-  const offset = (Number(dir === 'O' ? settings.offsetO : settings.offsetI) || 0) * 1000;
-  const walk = (Number(dir === 'O' ? settings.walkO : settings.walkI) || 0) * 1000;
+  const offset = (Number(settings.offset) || 0) * 1000;
+  const walk = (Number(settings.walk) || 0) * 1000;
   const sd = serviceDateOf(from);
   const out = [];
   // 前日・当日・翌日の運行日を順に見れば、終電後や日付またぎもそのまま扱える
@@ -889,7 +922,7 @@ function wavesOf(t, dir, count) {
     for (const [min, d, dest, no, estSec] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
       if (d !== dir) continue;
       // 秒補正テーブルにある列車: 推定した到着時刻（秒まで）＋歩行時間
-      // それ以外の列車:           時刻表の時刻（秒は00）＋方向ごとのオフセット
+      // それ以外の列車:           時刻表の時刻（秒は00）＋オフセット
       const est = estSec != null;
       // trainAt: 電車が駅に着く時刻（推定できない列車は時刻表の分＋00秒）、at: 波（お客さんが店に着く時刻）
       const trainAt = est ? base + estSec * 1000 : base + min * 60000;
@@ -1180,6 +1213,9 @@ function openSettings() {
   }
   $('setSwap').checked = !!settings.swap;
   $('setKey').value = settings.apiKey;
+  $('setKey').type = 'password';
+  $('keyShow').textContent = '表示';
+  $('settings').scrollTop = 0;
   $('settings').classList.add('open');
 }
 function closeSettings() { $('settings').classList.remove('open'); }
@@ -1211,12 +1247,16 @@ $('gear').addEventListener('click', openSettings);
 $('setCancel').addEventListener('click', closeSettings);
 $('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('open'));
 $('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
+// APIキーの文字を見せる／隠す
+$('keyShow').addEventListener('click', () => {
+  const show = $('setKey').type === 'password';
+  $('setKey').type = show ? 'text' : 'password';
+  $('keyShow').textContent = show ? '隠す' : '表示';
+});
 $('setSave').addEventListener('click', () => {
   settings = {
-    offsetO: draft.offsetO,
-    offsetI: draft.offsetI,
-    walkO: draft.walkO,
-    walkI: draft.walkI,
+    offset: draft.offset,
+    walk: draft.walk,
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
     countMode: settings.countMode,
