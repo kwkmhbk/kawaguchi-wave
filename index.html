@@ -92,14 +92,29 @@
   .col-body { flex: none; display: flex; flex-direction: column; text-align: center; padding: 4px 4px 2px; }
   .first { font-size: 12px; color: var(--led-green); line-height: 14px; }
   .first:empty { display: none; }
-  .dest { font-size: 20px; color: var(--led-green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 「前駅 → 当駅 → 店」の位置表示 */
+  .track { display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; font-size: 18px; color: var(--led-green); white-space: nowrap; }
+  .track .pt { flex: none; }
+  .track .rail { flex: 1; position: relative; height: 100%;
+    background: linear-gradient(90deg, #2a333c 50%, transparent 0) center / 6px 2px repeat-x; }  /* 点線の線路 */
+  .track .mv { position: absolute; top: 50%; left: calc(var(--x, 0) * (100% - 26px) + 13px); transform: translate(-50%, -50%);
+    display: none; line-height: 0; }
+  .track .mv svg { height: 20px; width: auto; filter: drop-shadow(0 0 3px currentColor); }
+  .track .train { color: #ff5a36; }
+  .track .person { color: var(--led-amber); }
+  .track[data-phase="wait"] .train, .track[data-phase="run"] .train,
+  .track[data-phase="walk"] .person, .track[data-phase="store"] .person { display: block; }
+  .track[data-phase="store"] .person { color: var(--led-red); }
+  .track .tag { display: none; font-size: 15px; }
+  .track.first > :not(.tag) { display: none; }
+  .track.first { justify-content: center; }
+  .track.first .tag { display: block; }
   /* 高さは3桁の秒数に合わせて固定する（秒⇔分:秒を切り替えても、上と下の高さが変わらないように） */
   /* --f: カウントの数字（3桁のとき）の大きさ。一覧を1行にしたときは大きくする */
   :root { --f: min(25vh, 14.4vw); }
   body.rows1 { --f: min(35vh, 19.4vw); }
   .count { display: flex; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 6px; white-space: nowrap;
     height: calc(var(--f) * 1.02); overflow: hidden; }
-  .dest small { font-size: 12px; margin-right: 8px; }
   /* 桁数が変わっても「あと／到着」「秒」の位置が動かないように、数字の欄は幅を固定して中央寄せにする。
      4桁・5桁のときは文字を小さくして、欄の幅（約3桁分）をそろえる */
   .label { font-size: 20px; width: 2.2em; text-align: right; color: var(--led-amber); }
@@ -210,7 +225,14 @@
       <div class="col-head">上り<small>赤羽岩淵・目黒方面</small></div>
       <div class="col-body">
         <div class="first led"></div>
-        <div class="dest led"></div>
+        <div class="track">
+          <span class="pt led">前駅</span>
+          <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
+          <span class="pt led">当駅</span>
+          <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
+          <span class="pt led">店</span>
+          <span class="tag led"></span>
+        </div>
         <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
         <div class="at led"></div>
       </div>
@@ -220,7 +242,14 @@
       <div class="col-head">下り<small>浦和美園方面</small></div>
       <div class="col-body">
         <div class="first led"></div>
-        <div class="dest led"></div>
+        <div class="track">
+          <span class="pt led">前駅</span>
+          <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
+          <span class="pt led">当駅</span>
+          <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
+          <span class="pt led">店</span>
+          <span class="tag led"></span>
+        </div>
         <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
         <div class="at led"></div>
       </div>
@@ -955,6 +984,33 @@ const $ = id => document.getElementById(id);
 const hms = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
 const hm = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 
+// 前駅を出てから当駅に着くまでの走行時間（秒）。extract.js の EST.runIn と同じ値
+const RUN_IN_SEC = { O: 150, I: 135 };
+
+// 「前駅 → 当駅 → 店」の表示で、電車とお客さんが今どこにいるかを示す
+//   前駅を出る前: 電車は前駅のそば / 前駅→当駅: 電車が動く / 当駅→店: 人が動く / 店に着いた後: 人が店で赤くなる
+function renderTrack(tr, t, sd, w) {
+  const wsd = serviceDateOf(w.at);
+  const first = wsd.getTime() !== sd.getTime();
+  tr.classList.toggle('first', first);
+  if (first) {
+    // 翌日の始発を待っているときは、位置の代わりに日付を出す
+    setText(tr.querySelector('.tag'), (wsd.getMonth() + 1) + '/' + wsd.getDate() + ' ' + (w.holiday ? '土休日' : '平日') + ' 始発');
+    return;
+  }
+  const dep = w.trainAt - RUN_IN_SEC[w.dir] * 1000;
+  const train = tr.querySelector('.train'), person = tr.querySelector('.person');
+  let phase, p;
+  if (t < dep) { phase = 'wait'; p = 0; }
+  else if (t < w.trainAt) { phase = 'run'; p = (t - dep) / (w.trainAt - dep); }
+  else if (t < w.at) { phase = 'walk'; p = (t - w.trainAt) / (w.at - w.trainAt); }
+  else { phase = 'store'; p = 1; }
+  tr.dataset.phase = phase;
+  // --x: 区間の左端を0、右端を1とした位置。どちらも左（前駅・当駅）から右（当駅・店）へ進む
+  if (phase === 'wait' || phase === 'run') train.style.setProperty('--x', p.toFixed(3));
+  else person.style.setProperty('--x', p.toFixed(3));
+}
+
 // 「時刻 駅着」などの部分。done なら赤くする
 function atPart(text, done) {
   const s = document.createElement('span');
@@ -969,7 +1025,8 @@ function renderColumn(col, t, sd, dir) {
   const q = sel => col.querySelector(sel);
   const w = waves[0];
   if (!w) {
-    q('.dest').textContent = '時刻表データなし';
+    q('.track .tag').textContent = '時刻表データなし';
+    q('.track').classList.add('first');
     q('.sec').textContent = '--';
     return null;
   }
@@ -1008,16 +1065,7 @@ function renderColumn(col, t, sd, dir) {
   atEl.textContent = '';
   atEl.append(atPart(hms(w.trainAt) + ' 駅着', t >= w.trainAt), arrow, atPart(hms(w.at) + ' 店着', t >= w.at));
 
-  // 翌日の始発などで運行日が変わる場合は、行き先の前に小さく出す（行を増やすと高さが変わるため同じ行に入れる）
-  const wsd = serviceDateOf(w.at);
-  const dest = q('.dest');
-  dest.textContent = '';
-  if (wsd.getTime() !== sd.getTime()) {
-    const tag = document.createElement('small');
-    tag.textContent = (wsd.getMonth() + 1) + '/' + wsd.getDate() + ' ' + (w.holiday ? '土休日' : '平日') + ' 始発';
-    dest.appendChild(tag);
-  }
-  dest.append(w.dest + '行');
+  renderTrack(q('.track'), t, sd, w);
 
   // 一覧の行は中身が変わったときだけ作り直す（毎秒作り直すとスライド中に位置が戻るため）。文字は毎秒書き換える
   const ul = q('.next');
