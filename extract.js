@@ -13,6 +13,10 @@ const path = require('path');
 const SOURCE_URL = 'https://raw.githubusercontent.com/nagix/mini-tokyo-3d/master/data/train-timetables/saitamarailway-saitamarailway.json';
 const STATION = 'SaitamaRailway.SaitamaRailway.KawaguchiMotogo';
 const HTML_FILE = path.join(__dirname, 'index.html');
+// 秒補正テーブル（平日の一部の列車について、川口元郷に着く秒数を推定したもの）。
+// ホームで実測したら、このファイルの est を書き換えてから、このスクリプトを実行し直す。
+// ダイヤ改正があったら中身は使えなくなるので、作り直すか空の配列 [] にする。
+const CORRECTION_FILE = path.join(__dirname, 'seconds-correction.json');
 const MARK_START = '/* @@TIMETABLE_START@@ */';
 const MARK_END = '/* @@TIMETABLE_END@@ */';
 
@@ -47,6 +51,23 @@ function toServiceMinutes(hhmm) {
   return (h < SERVICE_DAY_START_HOUR ? h + 24 : h) * 60 + m;
 }
 
+// "HH:MM:SS" → 運行日の0時からの秒数
+function toServiceSeconds(hhmmss) {
+  const [h, m, s] = hhmmss.split(':').map(Number);
+  return ((h < SERVICE_DAY_START_HOUR ? h + 24 : h) * 60 + m) * 60 + (s || 0);
+}
+
+// 秒補正テーブルを読み込み、「方向|到着分」をキーにした表にする
+function loadCorrections() {
+  if (!fs.existsSync(CORRECTION_FILE)) return new Map();
+  const map = new Map();
+  for (const c of JSON.parse(fs.readFileSync(CORRECTION_FILE, 'utf8'))) {
+    if (!/^\d\d:\d\d:\d\d$/.test(c.est)) throw new Error('秒補正テーブルの est の形が正しくありません: ' + JSON.stringify(c));
+    map.set(c.direction + '|' + c.arr, { row: c, used: 0 });
+  }
+  return map;
+}
+
 function fmt(min) {
   return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
 }
@@ -57,6 +78,7 @@ async function main() {
   const warnings = [];
   const notStopping = [];
   const terminal = [];
+  const corrections = loadCorrections();
 
   for (const t of trains) {
     const dayKey = DAYS[t.id.split('.').pop()];
@@ -74,8 +96,16 @@ async function main() {
 
     const destKey = (t.ds && t.ds[0] || '').split('.').pop();
     if (!DEST_NAMES[destKey]) warnings.push('行き先の日本語名が未登録: ' + destKey + '（英語名のまま表示されます）');
-    // [運行日の分, 方向, 行き先, 列車番号]
-    out[dayKey].push([toServiceMinutes(time), dir, DEST_NAMES[destKey] || destKey, t.n]);
+    // [運行日の分, 方向, 行き先, 列車番号, (推定到着の秒数：補正テーブルと一致した列車だけ)]
+    const rec = [toServiceMinutes(time), dir, DEST_NAMES[destKey] || destKey, t.n];
+    // 秒補正テーブルとの照合は平日ダイヤだけ。キーは「方向」と「到着分」
+    const c = dayKey === 'weekday' && corrections.get(t.d + '|' + time);
+    if (c) {
+      c.used++;
+      if (c.row.dep && row.d && c.row.dep !== row.d) warnings.push(`秒補正: ${t.d} ${time}着 の発車時刻が違います（表 ${c.row.dep} / 時刻表 ${row.d}）`);
+      rec.push(toServiceSeconds(c.row.est));
+    }
+    out[dayKey].push(rec);
   }
   for (const k of Object.keys(out)) out[k].sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
 
@@ -90,6 +120,18 @@ async function main() {
   console.log('川口元郷に止まらない列車: ' + (notStopping.length ? notStopping.join(', ') : 'なし'));
   console.log('川口元郷が始発/終点の列車: ' + (terminal.length ? terminal.join(', ') : 'なし'));
   [...new Set(warnings)].forEach(w => console.log('警告: ' + w));
+
+  // 秒補正テーブルの照合結果。照合できない行は、ダイヤ改正・方向名の違い・特定日だけ走る列車が考えられる
+  if (corrections.size) {
+    const all = [...corrections.values()];
+    const unmatched = all.filter(c => c.used === 0);
+    console.log(`\n秒補正テーブル: ${all.length} 行中 ${all.length - unmatched.length} 行を平日の列車に適用`);
+    if (unmatched.length) {
+      console.log('照合できなかった行（その列車には補正を使わず、今までどおりの計算になります）:');
+      for (const c of unmatched) console.log(`  ${c.row.direction} ${c.row.arr}着  est ${c.row.est}${c.row.note ? '  ※' + c.row.note : ''}`);
+    }
+    for (const c of all.filter(c => c.used > 1)) console.log(`警告: 秒補正 ${c.row.direction} ${c.row.arr}着 に一致する列車が ${c.used} 本あります`);
+  }
 
   // ---- index.html への埋め込み ----
   if (!fs.existsSync(HTML_FILE)) { console.log('\nindex.html がないため埋め込みは省略しました。'); return; }

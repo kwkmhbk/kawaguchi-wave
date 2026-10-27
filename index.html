@@ -116,6 +116,7 @@
     border-bottom: 1px dashed #263038; font-size: 15px; font-variant-numeric: tabular-nums; }
   .next .t { color: var(--led-white); }
   .next .t small { color: var(--led-green); font-size: 11px; margin-right: 4px; }
+  .est { font-size: 10px; color: var(--led-dim); text-shadow: none; margin-left: 5px; border: 1px solid #39424c; border-radius: 3px; padding: 0 3px; vertical-align: middle; }
   .next .d { color: var(--led-green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* 設定画面 */
@@ -221,7 +222,16 @@
       <div class="stepper" data-key="offsetO"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
     </div>
   </div>
-  <div class="notes">オフセット ＝ 到着の秒数（0〜59秒）＋ ホームから店まで歩く時間。初期値は60秒。矢印を押し続けると速く変わります。</div>
+  <div class="notes">オフセット ＝ 到着の秒数（0〜59秒）＋ ホームから店まで歩く時間。初期値は60秒。秒推定のない列車に使います。矢印を押し続けると速く変わります。</div>
+  <div class="grid">
+    <div class="field">上り（赤羽岩淵方面）の歩行時間（秒）
+      <div class="stepper" data-key="walkI"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
+    </div>
+    <div class="field">下り（浦和美園方面）の歩行時間（秒）
+      <div class="stepper" data-key="walkO"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
+    </div>
+  </div>
+  <div class="notes">歩行時間 ＝ 電車が到着してから、お客さんが店に着くまでの時間。初期値は30秒。到着の秒を推定してある列車（平日22〜24時、画面に「秒推定」の印）は、推定到着時刻＋歩行時間で計算します。</div>
   <div class="field">到着後にカウントアップする時間（秒）
     <div class="stepper" data-key="holdSec" data-max="300"><button data-step="-1">▼</button><output></output><button data-step="1">▲</button></div>
     <div class="hint">0秒になったら「到着」と表示して 0, 1, 2… と数え、この秒数まで数えたら次の波に切り替えます。初期値は30秒。</div>
@@ -524,34 +534,34 @@ const TIMETABLE = {"generated":"2026-10-27","weekday":[[312,"I","日吉","B580M"
 [1309,"I","白金高輪","B2138S"],
 [1313,"O","浦和美園","A2092M"],
 [1316,"I","白金高輪","B2152S"],
-[1321,"O","浦和美園","A2004K2"],
-[1324,"I","日吉","B2154S"],
-[1328,"O","浦和美園","A2190M"],
-[1330,"I","日吉","B2186M"],
-[1334,"O","浦和美園","A2070S"],
-[1337,"I","新横浜","B2294M"],
-[1341,"O","浦和美園","A2156S"],
-[1344,"I","白金高輪","B2262S"],
-[1348,"O","浦和美園","A2108K"],
-[1358,"I","白金高輪","B2292M"],
-[1361,"O","浦和美園","A2188M"],
-[1364,"I","白金高輪","B2290M"],
-[1367,"O","浦和美園","A2184M"],
-[1370,"I","日吉","B2270S"],
-[1374,"O","浦和美園","A2250S"],
-[1377,"I","白金高輪","B2256S"],
-[1382,"O","浦和美園","A2120K"],
-[1384,"I","日吉","B2208K"],
-[1389,"O","浦和美園","A2296M"],
-[1398,"I","武蔵小杉","B2388M"],
-[1402,"O","浦和美園","A2238S"],
-[1407,"I","白金高輪","B2304K"],
-[1410,"O","浦和美園","A2252S"],
-[1415,"I","武蔵小杉","B2312K"],
-[1418,"O","浦和美園","A2242S"],
-[1423,"I","奥沢","B2320K"],
-[1426,"O","浦和美園","A2282M"],
-[1435,"I","目黒","B2338K"],
+[1321,"O","浦和美園","A2004K2",79305],
+[1324,"I","日吉","B2154S",79447],
+[1328,"O","浦和美園","A2190M",79687],
+[1330,"I","日吉","B2186M",79822],
+[1334,"O","浦和美園","A2070S",80047],
+[1337,"I","新横浜","B2294M",80227],
+[1341,"O","浦和美園","A2156S",80482],
+[1344,"I","白金高輪","B2262S",80647],
+[1348,"O","浦和美園","A2108K",80925],
+[1358,"I","白金高輪","B2292M",81487],
+[1361,"O","浦和美園","A2188M",81667],
+[1364,"I","白金高輪","B2290M",81862],
+[1367,"O","浦和美園","A2184M",82027],
+[1370,"I","日吉","B2270S",82222],
+[1374,"O","浦和美園","A2250S",82447],
+[1377,"I","白金高輪","B2256S",82642],
+[1382,"O","浦和美園","A2120K",82927],
+[1384,"I","日吉","B2208K",83092],
+[1389,"O","浦和美園","A2296M",83362],
+[1398,"I","武蔵小杉","B2388M",83932],
+[1402,"O","浦和美園","A2238S",84142],
+[1407,"I","白金高輪","B2304K",84472],
+[1410,"O","浦和美園","A2252S",84622],
+[1415,"I","武蔵小杉","B2312K",84922],
+[1418,"O","浦和美園","A2242S",85102],
+[1423,"I","奥沢","B2320K",85432],
+[1426,"O","浦和美園","A2282M",85605],
+[1435,"I","目黒","B2338K",86122],
 [1440,"O","浦和美園","A2268S"],
 [1447,"O","浦和美園","A2392M"],
 [1448,"I","市ケ谷","B2352S"],
@@ -808,7 +818,8 @@ const HOLIDAY_LAST_YEAR = 2027;
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
 // holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
-const DEFAULTS = { offsetO: 60, offsetI: 60, holdSec: 30, swap: false, apiKey: '' };
+// walkO / walkI: 秒補正テーブルにある列車で使う、ホームから店までの歩行時間（方向別）
+const DEFAULTS = { offsetO: 60, offsetI: 60, walkO: 30, walkI: 30, holdSec: 30, swap: false, apiKey: '' };
 
 function loadSettings() {
   try {
@@ -852,6 +863,7 @@ function wavesOf(t, dir, count) {
   const holdSec = Math.max(0, Number(settings.holdSec) || 0);
   const from = t - (holdSec + 1) * 1000;
   const offset = (Number(dir === 'O' ? settings.offsetO : settings.offsetI) || 0) * 1000;
+  const walk = (Number(dir === 'O' ? settings.walkO : settings.walkI) || 0) * 1000;
   const sd = serviceDateOf(from);
   const out = [];
   // 前日・当日・翌日の運行日を順に見れば、終電後や日付またぎもそのまま扱える
@@ -859,11 +871,13 @@ function wavesOf(t, dir, count) {
     const day = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + k);
     const holiday = isHolidayDiagram(day);
     const base = day.getTime();
-    for (const [min, d, dest, no] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
+    for (const [min, d, dest, no, estSec] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
       if (d !== dir) continue;
-      // 時刻表の時刻（秒は00）＋方向ごとのオフセット
-      const at = base + min * 60000 + offset;
-      if (at > from) out.push({ at, dir, dest, no, holiday });
+      // 秒補正テーブルにある列車: 推定した到着時刻（秒まで）＋歩行時間
+      // それ以外の列車:           時刻表の時刻（秒は00）＋方向ごとのオフセット
+      const est = estSec != null;
+      const at = est ? base + estSec * 1000 + walk : base + min * 60000 + offset;
+      if (at > from) out.push({ at, dir, dest, no, holiday, est });
       if (out.length >= count) break;
     }
   }
@@ -874,6 +888,14 @@ function wavesOf(t, dir, count) {
 const $ = id => document.getElementById(id);
 const hms = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
 const hm = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+
+// 秒補正テーブルを使った列車に付ける小さな印
+function estMark(text) {
+  const s = document.createElement('span');
+  s.className = 'est';
+  s.textContent = text;
+  return s;
+}
 
 // 1方向ぶんの列を描く。現在の波を返す
 function renderColumn(col, t, sd, dir) {
@@ -896,6 +918,7 @@ function renderColumn(col, t, sd, dir) {
   sec.textContent = secText;
   sec.className = 'sec led' + (secText.length >= 5 ? ' d5' : secText.length === 4 ? ' d4' : '');
   q('.at').textContent = hms(w.at) + ' 着';
+  if (w.est) q('.at').appendChild(estMark('秒推定'));
 
   // 翌日の始発などで運行日が変わる場合は、その旨を出す
   const wsd = serviceDateOf(w.at);
@@ -925,6 +948,7 @@ function renderColumn(col, t, sd, dir) {
       a.appendChild(m);
     }
     a.append(hms(nw.at));
+    if (nw.est) a.appendChild(estMark('推'));
     const b = document.createElement('span');
     b.className = 'd led';
     b.textContent = nw.dest;
@@ -1112,6 +1136,8 @@ $('setSave').addEventListener('click', () => {
   settings = {
     offsetO: draft.offsetO,
     offsetI: draft.offsetI,
+    walkO: draft.walkO,
+    walkI: draft.walkI,
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
     apiKey: $('setKey').value.trim(),
