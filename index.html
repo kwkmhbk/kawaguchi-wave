@@ -106,6 +106,13 @@
   .sec { display: inline-block; width: 3ch; text-align: center; font-size: min(28vh, 16vw); line-height: 1.02; color: var(--led-amber); font-variant-numeric: tabular-nums; }
   .sec.d4 { width: 4ch; font-size: min(21vh, 12vw); } .sec.d5 { width: 5ch; font-size: min(16.8vh, 9.6vw); }
   .sec.d6 { width: 6ch; font-size: min(14vh, 8vw); } .sec.d7 { width: 7ch; font-size: min(12vh, 6.85vw); }
+  /* 一覧を1行にしたときは、空いた分だけカウントの部分を高くして数字を大きくする。
+     列の幅に「あと」「数字」「秒」が1行で収まる大きさにし、4桁以上は欄の幅がそろうように小さくする */
+  body.rows1 .count { height: calc(min(39vh, 21.5vw) * 1.02); }
+  body.rows1 .sec { font-size: min(39vh, 21.5vw); }
+  body.rows1 .sec.d4 { font-size: min(29.25vh, 16.1vw); } body.rows1 .sec.d5 { font-size: min(23.4vh, 12.9vw); }
+  body.rows1 .sec.d6 { font-size: min(19.5vh, 10.75vw); } body.rows1 .sec.d7 { font-size: min(16.7vh, 9.2vw); }
+  body.rows1 .label { font-size: 24px; } body.rows1 .unit { font-size: 20px; }
   .unit { font-size: 16px; width: 1.2em; text-align: left; color: var(--led-amber); }
   .at { font-size: 16px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .at .arrow { color: var(--led-dim); margin: 0 6px; }
@@ -163,6 +170,11 @@
   .stepper .val { min-width: 64px; text-align: center; font-size: 24px; font-variant-numeric: tabular-nums; }
   .stepper .val small { font-size: 12px; color: #8a96a3; margin-left: 2px; }
   /* オン・オフのスイッチ */
+  /* 1行・2行を選ぶボタン */
+  .seg { display: flex; flex: none; border: 1px solid #3a424b; border-radius: 10px; overflow: hidden; }
+  .seg button { width: 60px; height: 38px; font-size: 15px; border: 0; background: #232a32; color: #cfd6dd; font-family: inherit; }
+  .seg button + button { border-left: 1px solid #3a424b; }
+  .seg button.on { background: #1f6fb2; color: #fff; font-weight: 600; }
   .switch { position: relative; width: 56px; height: 32px; flex: none; }
   .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; }
   .switch span { position: absolute; inset: 0; border-radius: 16px; background: #3a424b; transition: background .2s; pointer-events: none; }
@@ -271,6 +283,10 @@
       <div class="row">
         <div class="name">左右を入れ替える<small>オンにすると、左に下り・右に上り</small></div>
         <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="name">一覧の行数<small>1行にするとカウントが大きくなる</small></div>
+        <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
       </div>
       <div class="row wide">
         <div class="name">ODPT の APIキー<small>この端末の中にだけ保存。空欄なら遅延検知は止まります</small></div>
@@ -862,7 +878,7 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒）
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒）
 const DEFAULTS = { offset: 60, walk: 30, holdSec: 30, swap: false, apiKey: '',
-  countMode: 'sec', listTarget: 'train', listRemain: 'sec' };
+  countMode: 'sec', listTarget: 'train', listRemain: 'sec', listRows: 2 }; // listRows: 下の一覧の行数（1 か 2）
 
 function loadSettings() {
   try {
@@ -1054,12 +1070,14 @@ function render() {
   if (sd.getFullYear() > HOLIDAY_LAST_YEAR) dayText += '（祝日リスト要更新）';
   $('dayType').textContent = dayText;
   $('cols').classList.toggle('swap', !!settings.swap);
+  const rows = Number(settings.listRows) === 1 ? 1 : 2;
+  document.body.classList.toggle('rows1', rows === 1);
 
   renderColumn($('colI'), t, sd, 'I');
   renderColumn($('colO'), t, sd, 'O');
-  // 一覧はちょうど2行見えるように、一覧の高さの半分を1行の高さにする
+  // 一覧はちょうど設定した行数（1行か2行）が見えるように、一覧の高さを行数で割って1行の高さにする
   for (const ul of document.querySelectorAll('.next')) {
-    const row = Math.floor(ul.clientHeight / 2) + 'px';
+    const row = Math.floor(ul.clientHeight / rows) + 'px';
     if (ul.clientHeight > 0 && ul.style.getPropertyValue('--row') !== row) ul.style.setProperty('--row', row);
   }
 
@@ -1212,6 +1230,8 @@ function openSettings() {
     showStepper(st);
   }
   $('setSwap').checked = !!settings.swap;
+  draft.listRows = Number(settings.listRows) === 1 ? 1 : 2;
+  showRows();
   $('setKey').value = settings.apiKey;
   $('setKey').type = 'password';
   $('keyShow').textContent = '表示';
@@ -1247,6 +1267,17 @@ $('gear').addEventListener('click', openSettings);
 $('setCancel').addEventListener('click', closeSettings);
 $('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('open'));
 $('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
+// 一覧の行数（1行・2行）の選択
+function showRows() {
+  for (const b of $('setRows').children) b.classList.toggle('on', Number(b.dataset.rows) === draft.listRows);
+}
+$('setRows').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  draft.listRows = Number(b.dataset.rows);
+  showRows();
+});
+
 // APIキーの文字を見せる／隠す
 $('keyShow').addEventListener('click', () => {
   const show = $('setKey').type === 'password';
@@ -1259,6 +1290,7 @@ $('setSave').addEventListener('click', () => {
     walk: draft.walk,
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
+    listRows: draft.listRows,
     countMode: settings.countMode,
     listTarget: settings.listTarget,
     listRemain: settings.listRemain,
