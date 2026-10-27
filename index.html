@@ -107,6 +107,13 @@
   .sec.d4 { width: 4ch; font-size: calc(var(--f) * 3 / 4); } .sec.d5 { width: 5ch; font-size: calc(var(--f) * 3 / 5); }
   .sec.d6 { width: 6ch; font-size: calc(var(--f) * 3 / 6); } .sec.d7 { width: 7ch; font-size: calc(var(--f) * 3 / 7); }
   body.rows1 .label { font-size: 24px; } body.rows1 .unit { font-size: 20px; }
+  /* 「分以内」は「秒」の欄の幅のまま右の余白にはみ出させる（「あと」と数字の位置を動かさないため） */
+  .unit { white-space: nowrap; overflow: visible; }
+  .unit.within { font-size: 14px; }
+  body.rows1 .unit.within { font-size: 12px; }  /* 1行表示は数字が大きく右の余白が狭いため */
+  /* 一覧を1行にしたときは、一覧を2行表示の1行分の高さにし、余った高さはカウントの部分の上下に均等に回す */
+  body.rows1 .col-body { flex: 1; min-height: 0; justify-content: center; }
+  body.rows1 .next { flex: none; height: 62px; }
   .unit { font-size: 16px; width: 1.2em; text-align: left; color: var(--led-amber); }
   .at { font-size: 16px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .at .arrow { color: var(--led-dim); margin: 0 6px; }
@@ -868,7 +875,7 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
 // walk: 電車が着いてから、お客さんが店に着くまでの歩行時間（上り・下り共通。同じホームのため）
 // offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
-// countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒）
+// countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 const DEFAULTS = { offset: 60, walk: 30, holdSec: 30, swap: false, apiKey: '',
   countMode: 'sec', listTarget: 'train', listRemain: 'sec', listRows: 2 }; // listRows: 下の一覧の行数（1 か 2）
@@ -969,15 +976,30 @@ function renderColumn(col, t, sd, dir) {
   const remain = Math.ceil((w.at - t) / 1000);
   const arrived = remain <= 0;
   col.classList.toggle('arrived', arrived);
-  q('.label').textContent = arrived ? '到着' : 'あと';
-  // 到着後はマイナスを付けずに 0, 1, 2… とカウントアップする。表示は「秒」か「分:秒」（画面上半分のタッチで切り替え）
+  // 表示は「秒」「分:秒」「分」の3通り（一覧より上のタッチで切り替え）。
+  // 秒・分:秒: 到着後はマイナスを付けずに 0, 1, 2… とカウントアップする
+  // 分: 秒は切り捨て。1分未満は「あと1分以内」、到着後は数えずに「到着」とだけ出す
   const n = arrived ? -remain : remain;
-  const ms = settings.countMode === 'ms';
-  const secText = ms ? fmtDur(n) : String(n);
+  const mode = settings.countMode;
+  let label = arrived ? '到着' : 'あと', secText, unit = '秒', within = false;
+  if (mode === 'min') {
+    if (arrived) { label = ''; secText = '到着'; unit = ''; }
+    else if (remain < 60) { secText = '1'; unit = '分'; within = true; }
+    else { secText = String(Math.floor(remain / 60)); unit = '分'; }
+  } else if (mode === 'ms') {
+    secText = fmtDur(n); unit = '';
+  } else {
+    secText = String(n);
+  }
+  q('.label').textContent = label;
   const sec = q('.sec');
   sec.textContent = secText;
-  sec.className = 'sec led' + (secText.length >= 4 ? ' d' + Math.min(secText.length, 7) : '');
-  q('.unit').textContent = ms ? '' : '秒';
+  // 4文字以上は欄の幅がそろうように小さくする。「到着」は全角2文字＝半角4文字分
+  const len = secText === '到着' ? 4 : secText.length;
+  sec.className = 'sec led' + (len >= 4 ? ' d' + Math.min(len, 7) : '');
+  const unitEl = q('.unit');
+  unitEl.textContent = within ? '分以内' : unit;
+  unitEl.classList.toggle('within', within);
   // 「19:15:22 駅着 → 19:15:52 店着」。電車が駅に着いたら駅着の部分を、お客さんが店に着いたら店着の部分を赤くする
   const atEl = q('.at');
   const arrow = document.createElement('span');
@@ -1206,7 +1228,8 @@ $('cols').addEventListener('click', e => {
       settings.listRemain = { sec: 'ms', ms: 'min', min: 'sec' }[settings.listRemain] || 'sec';
     }
   } else {
-    settings.countMode = settings.countMode === 'ms' ? 'sec' : 'ms';
+    // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
+    settings.countMode = { sec: 'ms', ms: 'min', min: 'sec' }[settings.countMode] || 'sec';
   }
   saveSettings(settings);
   render();
