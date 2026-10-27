@@ -93,9 +93,12 @@
   .first { font-size: 12px; color: var(--led-green); line-height: 14px; }
   .first:empty { display: none; }
   /* 「前駅 → 当駅 → 店」の位置表示 */
-  .track { display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; font-size: 18px; color: var(--led-green); white-space: nowrap; }
-  .track .pt { flex: none; }
-  .track .rail { flex: 1; position: relative; height: 100%;
+  .track { display: flex; align-items: flex-end; gap: 4px; padding: 0 6px 2px; min-height: 41px; font-size: 18px; color: var(--led-green); white-space: nowrap; }
+  /* 駅名・店の上に、着く時刻（分:秒）を小さく出す。線路は駅名の高さにそろえる */
+  .track .pt { flex: none; display: flex; flex-direction: column-reverse; align-items: center; line-height: 24px; }
+  .track .tm { font-size: 14px; line-height: 15px; color: var(--led-white); font-variant-numeric: tabular-nums; }
+  .track .tm.done { color: var(--led-red); }
+  .track .rail { flex: 1; position: relative; height: 24px;
     background: linear-gradient(90deg, #2a333c 50%, transparent 0) center / 6px 2px repeat-x; }  /* 点線の線路 */
   .track .mv { position: absolute; top: 50%; left: calc(var(--x, 0) * (100% - 26px) + 13px); transform: translate(-50%, -50%);
     display: none; line-height: 0; }
@@ -107,7 +110,7 @@
   .track[data-phase="store"] .person { color: var(--led-red); }
   .track .tag { display: none; font-size: 15px; }
   .track.first > :not(.tag) { display: none; }
-  .track.first { justify-content: center; }
+  .track.first { justify-content: center; align-items: center; }
   .track.first .tag { display: block; }
   /* 高さは3桁の秒数に合わせて固定する（秒⇔分:秒を切り替えても、上と下の高さが変わらないように） */
   /* --f: カウントの数字（3桁のとき）の大きさ。一覧を1行にしたときは大きくする */
@@ -130,9 +133,6 @@
   body.rows1 .col-body { flex: 1; min-height: 0; justify-content: center; }
   body.rows1 .next { flex: none; height: 62px; }
   .unit { font-size: 16px; width: 1.2em; text-align: left; color: var(--led-amber); }
-  .at { font-size: 16px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .at .arrow { color: var(--led-dim); margin: 0 6px; }
-  .at .done { color: var(--led-red); }  /* 駅着・店着の時刻を過ぎた部分 */
   .col.arrived .label, .col.arrived .sec, .col.arrived .unit { color: var(--led-red); }
   .col.arrived .label { animation: blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: .25; } }
@@ -228,13 +228,12 @@
         <div class="track">
           <span class="pt led">前駅</span>
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
-          <span class="pt led">当駅</span>
+          <span class="pt led">当駅<span class="tm tm-st"></span></span>
           <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
-          <span class="pt led">店</span>
+          <span class="pt led">店<span class="tm tm-shop"></span></span>
           <span class="tag led"></span>
         </div>
         <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
-        <div class="at led"></div>
       </div>
       <ul class="next"></ul>
     </section>
@@ -245,13 +244,12 @@
         <div class="track">
           <span class="pt led">前駅</span>
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
-          <span class="pt led">当駅</span>
+          <span class="pt led">当駅<span class="tm tm-st"></span></span>
           <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
-          <span class="pt led">店</span>
+          <span class="pt led">店<span class="tm tm-shop"></span></span>
           <span class="tag led"></span>
         </div>
         <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
-        <div class="at led"></div>
       </div>
       <ul class="next"></ul>
     </section>
@@ -328,7 +326,7 @@
     </section>
   </div>
   <div class="notes">
-    ▲▼は押し続けると速く変わります。初期値: 歩行時間30秒、到着後カウント30秒、オフセット60秒。
+    ▲▼は押し続けると速く変わります。初期値: 歩行時間100秒、到着後カウント60秒、オフセット60秒、一覧の行数1行。
     歩行時間 ＝ 電車が駅に着いてから、お客さんが店に着くまでの時間。同じホームなので上り・下り共通です。<br>
     遅延時は表示が不正確になります。遅延検知は東京メトロ南北線の運行情報を使っています。5分以上の遅れが対象なので、小さな遅れは検知できません。
     埼玉高速鉄道の区間だけで起きた遅れは、南北線の情報に出ないことがあります。<br>
@@ -906,8 +904,8 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
-const DEFAULTS = { offset: 60, walk: 30, holdSec: 30, swap: false, apiKey: '',
-  countMode: 'sec', listTarget: 'train', listRemain: 'sec', listRows: 2 }; // listRows: 下の一覧の行数（1 か 2）
+const DEFAULTS = { offset: 60, walk: 100, holdSec: 60, swap: false, apiKey: '',
+  countMode: 'sec', listTarget: 'train', listRemain: 'sec', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
 
 function loadSettings() {
   try {
@@ -995,9 +993,18 @@ function renderTrack(tr, t, sd, w) {
   tr.classList.toggle('first', first);
   if (first) {
     // 翌日の始発を待っているときは、位置の代わりに日付を出す
-    setText(tr.querySelector('.tag'), (wsd.getMonth() + 1) + '/' + wsd.getDate() + ' ' + (w.holiday ? '土休日' : '平日') + ' 始発');
+    const d = new Date(w.trainAt);
+    setText(tr.querySelector('.tag'), (wsd.getMonth() + 1) + '/' + wsd.getDate() + ' ' + (w.holiday ? '土休日' : '平日') + ' 始発 '
+      + d.getHours() + ':' + pad(d.getMinutes()) + '着');
     return;
   }
+  // 「当駅」「店」の下に、それぞれに着く時刻（分:秒）を出す。着いた方は赤くする
+  const ms = x => { const d = new Date(x); return pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+  const [tmSt, tmShop] = tr.querySelectorAll('.tm-st, .tm-shop');
+  setText(tmSt, ms(w.trainAt));
+  setText(tmShop, ms(w.at));
+  tmSt.classList.toggle('done', t >= w.trainAt);
+  tmShop.classList.toggle('done', t >= w.at);
   const dep = w.trainAt - RUN_IN_SEC[w.dir] * 1000;
   const train = tr.querySelector('.train'), person = tr.querySelector('.person');
   let phase, p;
@@ -1011,13 +1018,6 @@ function renderTrack(tr, t, sd, w) {
   else person.style.setProperty('--x', p.toFixed(3));
 }
 
-// 「時刻 駅着」などの部分。done なら赤くする
-function atPart(text, done) {
-  const s = document.createElement('span');
-  if (done) s.className = 'done';
-  s.textContent = text;
-  return s;
-}
 
 // 1方向ぶんの列を描く。現在の波を返す
 function renderColumn(col, t, sd, dir) {
@@ -1057,13 +1057,6 @@ function renderColumn(col, t, sd, dir) {
   const unitEl = q('.unit');
   unitEl.textContent = within ? '分以内' : unit;
   unitEl.classList.toggle('within', within);
-  // 「19:15:22 駅着 → 19:15:52 店着」。電車が駅に着いたら駅着の部分を、お客さんが店に着いたら店着の部分を赤くする
-  const atEl = q('.at');
-  const arrow = document.createElement('span');
-  arrow.className = 'arrow';
-  arrow.textContent = '→';
-  atEl.textContent = '';
-  atEl.append(atPart(hms(w.trainAt) + ' 駅着', t >= w.trainAt), arrow, atPart(hms(w.at) + ' 店着', t >= w.at));
 
   renderTrack(q('.track'), t, sd, w);
 
