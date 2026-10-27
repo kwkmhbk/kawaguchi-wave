@@ -36,11 +36,12 @@
     -webkit-user-select: none; user-select: none;
     -webkit-text-size-adjust: 100%;
   }
+  /* 画面の高さいっぱいに使う（iPhone で下にすき間が残らないよう、使えれば dvh を使う） */
   #app {
-    height: 100%;
+    height: 100%; height: 100dvh;
     display: flex; flex-direction: column; gap: 5px;
     padding: calc(env(safe-area-inset-top) + 5px) calc(env(safe-area-inset-right) + 8px)
-             calc(env(safe-area-inset-bottom) + 4px) calc(env(safe-area-inset-left) + 8px);
+             calc(env(safe-area-inset-bottom) + 2px) calc(env(safe-area-inset-left) + 8px);
   }
   body.debug #app { height: auto; min-height: 100%; }
   body.debug #cols { height: 280px; flex: none; }
@@ -116,23 +117,29 @@
   /* --f: カウントの数字（3桁のとき）の大きさ。一覧を1行にしたときは大きくする */
   :root { --f: min(25vh, 14.4vw); }
   body.rows1 { --f: min(35vh, 19.4vw); }
-  .count { display: flex; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 6px; white-space: nowrap;
+  .count { display: flex; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 4px; white-space: nowrap;
     height: calc(var(--f) * 1.02); overflow: hidden; }
   /* 桁数が変わっても「あと／到着」「秒」の位置が動かないように、数字の欄は幅を固定して中央寄せにする。
-     4桁・5桁のときは文字を小さくして、欄の幅（約3桁分）をそろえる */
-  .label { font-size: 20px; width: 2.2em; text-align: right; color: var(--led-amber); }
+     4桁・5桁のときは文字を小さくして、欄の幅（約3桁分）をそろえる。
+     左（あと／到着）と右（秒／分）の欄は同じ幅（--side）にして、数字が列の真ん中に来るようにする */
+  :root { --side: 40px; }
+  body.rows1 { --side: 48px; }
+  .label { font-size: 20px; width: var(--side); text-align: right; color: var(--led-amber); }
   .sec { display: inline-block; width: 3ch; text-align: center; font-size: var(--f); line-height: 1.02; color: var(--led-amber); font-variant-numeric: tabular-nums; }
   .sec.d4 { width: 4ch; font-size: calc(var(--f) * 3 / 4); } .sec.d5 { width: 5ch; font-size: calc(var(--f) * 3 / 5); }
   .sec.d6 { width: 6ch; font-size: calc(var(--f) * 3 / 6); } .sec.d7 { width: 7ch; font-size: calc(var(--f) * 3 / 7); }
   body.rows1 .label { font-size: 24px; } body.rows1 .unit { font-size: 20px; }
-  /* 「分以内」は「秒」の欄の幅のまま右の余白にはみ出させる（「あと」と数字の位置を動かさないため） */
-  .unit { white-space: nowrap; overflow: visible; }
-  .unit.within { font-size: 14px; }
-  body.rows1 .unit.within { font-size: 12px; }  /* 1行表示は数字が大きく右の余白が狭いため */
-  /* 一覧を1行にしたときは、一覧を2行表示の1行分の高さにし、余った高さはカウントの部分の上下に均等に回す */
+  .unit { font-size: 16px; width: var(--side); text-align: left; white-space: nowrap; color: var(--led-amber); }
+  /* 「分」表示（「あと 4 分」「あと 1 分以内」）は欄の幅を固定せず、一続きにして真ん中に寄せる（「分以内」が見切れないように） */
+  .count.compact .label, .count.compact .sec, .count.compact .unit { width: auto; }
+  /* 「分」表示の大きな「到着」は、左右の欄を消して真ん中に置く */
+  .count.only .label, .count.only .unit { display: none; }
+  /* 一覧を1行にしたときは、一覧を文字が収まる高さにし、余った高さはカウントの部分の上下に均等に回す */
   body.rows1 .col-body { flex: 1; min-height: 0; justify-content: center; }
-  body.rows1 .next { flex: none; height: 62px; }
-  .unit { font-size: 16px; width: 1.2em; text-align: left; color: var(--led-amber); }
+  /* 位置表示（アイコン）は少し上に、カウントは気持ち下に置く。
+     間を16px空けると、中央寄せで位置表示が8px上・カウントが8px下に動く。位置表示はさらに8px上げる */
+  body.rows1 .track { margin-bottom: 16px; position: relative; top: -8px; }
+  body.rows1 .next { flex: none; height: 46px; margin-bottom: 3px; }
   .col.arrived .label, .col.arrived .sec, .col.arrived .unit { color: var(--led-red); }
   .col.arrived .label { animation: blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: .25; } }
@@ -905,7 +912,7 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 const DEFAULTS = { offset: 60, walk: 100, holdSec: 60, swap: false, apiKey: '',
-  countMode: 'sec', listTarget: 'train', listRemain: 'sec', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
+  countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
 
 function loadSettings() {
   try {
@@ -1056,7 +1063,10 @@ function renderColumn(col, t, sd, dir) {
   sec.className = 'sec led' + (len >= 4 ? ' d' + Math.min(len, 7) : '');
   const unitEl = q('.unit');
   unitEl.textContent = within ? '分以内' : unit;
-  unitEl.classList.toggle('within', within);
+  const countEl = q('.count');
+  // 「分」表示は数字の桁数がめったに変わらないので、「あと ● 分」を一続きにして真ん中に寄せる
+  countEl.classList.toggle('compact', mode === 'min');
+  countEl.classList.toggle('only', mode === 'min' && arrived);
 
   renderTrack(q('.track'), t, sd, w);
 
@@ -1254,6 +1264,20 @@ document.addEventListener('visibilitychange', () => {
 });
 // 一部の環境ではタップしないと Wake Lock が取れないため、タップ時にも試す
 document.addEventListener('click', requestWakeLock);
+
+// 一覧をスライドしたあと、しばらく何も触らなければ一番上（次の電車）に戻す
+const LIST_RESET_MS = 10 * 1000;
+for (const ul of document.querySelectorAll('.next')) {
+  let timer = null;
+  const later = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (ul.scrollTop > 0) ul.scrollTo({ top: 0, behavior: 'smooth' }); }, LIST_RESET_MS);
+  };
+  // 指で触っている間は戻さない
+  ul.addEventListener('touchstart', () => clearTimeout(timer), { passive: true });
+  ul.addEventListener('touchend', later, { passive: true });
+  ul.addEventListener('scroll', later, { passive: true });
+}
 
 // 画面のタッチで表示を切り替える。
 // 一覧より上（カウントの部分）: カウントの秒⇔分:秒
