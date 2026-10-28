@@ -96,10 +96,12 @@
   .col-O .col-head { background: var(--down); }
   .col-body { flex: none; display: flex; flex-direction: column; text-align: center; padding: 4px 4px 2px; }
   /* 「前駅 → 当駅 → 店」の位置表示 */
-  .track { display: flex; align-items: flex-end; gap: 4px; padding: 0 6px 2px; min-height: 41px; font-size: 18px; color: var(--led-green); white-space: nowrap; }
+  /* 左右の端に14pxずつ空けておく（左は発車前の電車、右は店に着いた後の人を置く場所。どちらも端で見切れてよい） */
+  .track { position: relative; display: flex; align-items: flex-end; gap: 4px; padding: 0 14px 2px; min-height: 41px; font-size: 18px; color: var(--led-green); white-space: nowrap; }
   /* 駅名・店の上に、着く時刻（分:秒）を小さく出す。線路は駅名の高さにそろえる */
   .track .pt { flex: none; display: flex; flex-direction: column-reverse; align-items: center; line-height: 24px; }
-  .track .tm { font-size: 14px; line-height: 15px; color: var(--led-white); font-variant-numeric: tabular-nums; }
+  /* 時刻が「到着」に変わっても駅名の位置がずれないよう、欄の幅を固定する */
+  .track .tm { min-width: 2.6em; text-align: center; font-size: 14px; line-height: 15px; color: var(--led-white); font-variant-numeric: tabular-nums; }
   .track .tm.done { color: var(--led-red); }
   .track .rail { flex: 1; position: relative; height: 24px;
     background: linear-gradient(90deg, #2a333c 50%, transparent 0) center / 6px 2px repeat-x; }  /* 点線の線路 */
@@ -109,8 +111,16 @@
   .track .train { color: #ff5a36; }
   .track .person { color: var(--led-amber); }
   .track[data-phase="wait"] .train, .track[data-phase="run"] .train,
-  .track[data-phase="walk"] .person, .track[data-phase="store"] .person { display: block; }
-  .track[data-phase="store"] .person { color: var(--led-red); }
+  .track[data-phase="walk"] .person { display: block; }
+  /* 電車が前駅を出る前: 「前駅」のさらに左（左右の端に空けた場所）に置く。端が少し見切れてよい。
+     線路を基準にせず位置表示全体を基準にするため、線路の position を外す */
+  .track[data-phase="wait"] .rail, .track[data-phase="store"] .rail { position: static; }
+  /* 電車（幅約26px）の右端を「前駅」の文字から8px離す: 中心 = 14px - 8px - 13px */
+  .track[data-phase="wait"] .train { left: -7px; top: calc(100% - 14px); }
+  /* お客さんが店に着いた後: 人は「店」のさらに右（右の端）に立つ。
+     「店」の文字は上の時刻の欄の幅の中で中央にあるため、見た目で文字から約4px離れる位置にする */
+  .track[data-phase="store"] .person { display: block; left: calc(100% - 13px); top: calc(100% - 14px); }
+  .track .shop-nm { font-weight: normal; }
   .track .tag { display: none; font-size: 15px; }
   /* 終電後は、位置表示の代わりに文章（.tag）だけを出す */
   .track.msg > :not(.tag) { display: none; }
@@ -258,7 +268,7 @@
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
           <span class="pt led">当駅<span class="tm tm-st"></span></span>
           <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
-          <span class="pt led">店<span class="tm tm-shop"></span></span>
+          <span class="pt led"><b class="shop-nm">店</b><span class="tm tm-shop"></span></span>
           <span class="tag led"></span>
         </div>
         <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
@@ -273,7 +283,7 @@
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
           <span class="pt led">当駅<span class="tm tm-st"></span></span>
           <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
-          <span class="pt led">店<span class="tm tm-shop"></span></span>
+          <span class="pt led"><b class="shop-nm">店</b><span class="tm tm-shop"></span></span>
           <span class="tag led"></span>
         </div>
         <div class="count"><span class="label led"></span><span class="sec led">--</span><span class="unit led">秒</span></div>
@@ -1021,8 +1031,9 @@ function renderTrack(tr, t, w) {
   // 「当駅」「店」の上に、それぞれに着く時刻（分:秒）を出す。着いた方は赤くする
   const ms = x => { const d = new Date(x); return pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
   const [tmSt, tmShop] = tr.querySelectorAll('.tm-st, .tm-shop');
-  setText(tmSt, ms(w.trainAt));
-  setText(tmShop, ms(w.at));
+  // 着いた後は時刻の代わりに「到着」と出す
+  setText(tmSt, t >= w.trainAt ? '到着' : ms(w.trainAt));
+  setText(tmShop, t >= w.at ? '到着' : ms(w.at));
   tmSt.classList.toggle('done', t >= w.trainAt);
   tmShop.classList.toggle('done', t >= w.at);
   const dep = w.trainAt - RUN_IN_SEC[w.dir] * 1000;
