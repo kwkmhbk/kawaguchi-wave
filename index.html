@@ -76,7 +76,7 @@
     display: none; font-family: inherit; font-size: 15px; padding: 2px 10px; color: #000; background: var(--warn);
     border: 0; border-radius: 3px; position: relative; z-index: 1; white-space: nowrap;
   }
-  body.delayed #delayBadge { display: inline-block; animation: blink 1.6s steps(1) infinite; }
+  body.delayed #delayBadge { display: inline-block; }
   #delayPanel { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center;
     background: rgba(0,0,0,.8); padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px); }
   #delayPanel.open { display: flex; }
@@ -198,6 +198,8 @@
   .row .name small { display: block; font-size: 11px; color: #8a96a3; margin-top: 2px; }
   .row.wide { flex-wrap: wrap; padding: 8px 0; }
   .row.wide .name { flex-basis: 100%; }
+  #rawToggle { font-family: inherit; font-size: 12px; margin-left: 8px; }
+  #rawView { white-space: pre-wrap; word-break: break-all; font-size: 11px; color: #9aa4ad; background: #0b0e11; padding: 8px; margin: 8px 0 0; max-height: 40vh; overflow: auto; user-select: text; -webkit-user-select: text; }
   #settings .state { font-size: 13px; color: #cfd6dd; padding: 10px 0; border-top: 1px solid #222830; }
   #settings .notes { font-size: 11px; color: #7d8792; line-height: 1.6; margin: 10px 2px 0; }
   /* 上下の矢印で数値を変える部品 */
@@ -363,7 +365,10 @@
           <button id="keyShow">表示</button>
         </div>
       </div>
-      <div class="state">遅延情報: <span id="netStatus"></span><span id="checked"></span></div>
+      <div class="state">遅延情報: <span id="netStatus"></span><span id="checked"></span>
+        <button id="rawToggle" type="button">取得内容を見る</button>
+        <pre id="rawView" hidden></pre>
+      </div>
     </section>
   </div>
   <div class="notes">
@@ -1192,7 +1197,7 @@ function tick() {
 
 // ===================== 遅延の自動検知（ODPT） =====================
 // 方針: 遅延を見つけたら知らせるだけ。予測時刻はずらさない。
-const delay = { state: 'init', text: '', checkedAt: 0 };
+const delay = { state: 'init', text: '', brief: '', checkedAt: 0, raw: '' };
 let delayTimer = null;
 let mockMode = '';
 
@@ -1207,7 +1212,8 @@ function isNormal(info) {
   const status = jaText(info['odpt:trainInformationStatus']);
   const text = jaText(info['odpt:trainInformationText']);
   if (status) return /平常/.test(status);
-  return /平常/.test(text);
+  // 東京メトロの平常時の文章は「現在、事故・遅延に関する情報はありません。」
+  return /平常|情報はありません|通常/.test(text);
 }
 
 // 模擬データ（デバッグ用）。ODPT のレスポンスと同じ形にしてある
@@ -1238,7 +1244,28 @@ async function fetchDelay() {
   }
 }
 
+// 帯に出す短い説明: 「15分遅れ・16:30頃から」。分数や時刻が分からない項目は出さない
+function delayBrief(info, text) {
+  const parts = [];
+  const m = text.match(/(\d+)分(?:以上)?(?:程度)?(?:の)?遅れ/) || text.match(/遅れ[^。]*?(\d+)分/);
+  if (m) parts.push(m[1] + '分遅れ');
+  let at = '';
+  const origin = info['odpt:timeOfOrigin'] || info['dc:date'];
+  const d = origin ? new Date(origin) : null;
+  if (d && !isNaN(d)) at = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  else {
+    const t = text.match(/(\d{1,2})時(\d{1,2})分頃/);
+    if (t) at = t[1].padStart(2, '0') + ':' + t[2].padStart(2, '0');
+  }
+  if (at) parts.push(at + '頃から');
+  return parts.join('・');
+}
+
 function applyDelay(json, err) {
+  // 設定画面の「取得内容を見る」用。APIキーは含まれない
+  delay.raw = err ? 'エラー: ' + (err.message || err)
+    : JSON.stringify(Array.isArray(json) ? json.filter(x => x['odpt:railway'] === NAMBOKU) : json, null, 1);
+  delay.raw = (hm(now()) + ' 取得' + String.fromCharCode(10)) + (delay.raw === '[]' ? '南北線の項目なし。全体の件数: ' + (Array.isArray(json) ? json.length : '?') : delay.raw);
   const info = Array.isArray(json) ? json.find(x => x['odpt:railway'] === NAMBOKU) : null;
   if (err || !info) {
     delay.state = 'error';
@@ -1252,7 +1279,9 @@ function applyDelay(json, err) {
     const status = jaText(info['odpt:trainInformationStatus']);
     const text = jaText(info['odpt:trainInformationText']);
     delay.text = (status ? '【' + status + '】' : '') + text;
+    delay.brief = delayBrief(info, text);
     delay.checkedAt = now();
+    console.info('運行情報', info);
   }
   renderDelay();
 }
@@ -1262,8 +1291,10 @@ function renderDelay() {
   document.body.classList.toggle('delayed', delayed);
   if (!delayed) $('delayPanel').classList.remove('open');
   $('delayText').textContent = delay.text;
+  $('rawView').textContent = delay.raw || '（まだ取得していません）';
+  $('delayBadge').textContent = '南北線 遅延中' + (delay.brief ? '・' + delay.brief : '・予測は目安');
   // 取得の状況は設定画面にだけ表示する
-  const msg = { nokey: 'APIキー未設定', error: '遅延情報を取得できません', ok: '南北線 平常', delay: '南北線 遅延中・予測は目安', init: '確認中' };
+  const msg = { nokey: 'APIキー未設定', error: '遅延情報を取得できません', ok: '南北線 平常', delay: '南北線 遅延中' + (delay.brief ? '・' + delay.brief : '・予測は目安'), init: '確認中' };
   $('netStatus').textContent = msg[delay.state] || '';
   $('checked').textContent = delay.checkedAt ? '（' + hm(delay.checkedAt) + ' 確認）' : '';
 }
@@ -1385,6 +1416,7 @@ for (const st of steppers) {
 
 $('station').addEventListener('click', openSettings);
 $('setCancel').addEventListener('click', closeSettings);
+$('rawToggle').addEventListener('click', () => { $('rawView').hidden = !$('rawView').hidden; });
 $('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('open'));
 $('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
 // 一覧の行数（1行・2行）の選択
