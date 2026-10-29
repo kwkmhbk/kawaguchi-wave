@@ -1213,7 +1213,8 @@ function isNormal(info) {
   const text = jaText(info['odpt:trainInformationText']);
   if (status) return /平常/.test(status);
   // 東京メトロの平常時の文章は「現在、事故・遅延に関する情報はありません。」
-  return /平常|情報はありません|通常/.test(text);
+  // 終電後は「ただいまの時間は運航を終了しております。」が返る（遅延ではない）
+  return /平常|情報はありません|通常|(運行|運航|運転)を?終了/.test(text);
 }
 
 // 模擬データ（デバッグ用）。ODPT のレスポンスと同じ形にしてある
