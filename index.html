@@ -221,6 +221,15 @@
   .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform .2s; }
   .switch input:checked + span { background: #2a9d5c; }
   .switch input:checked + span::after { transform: translateX(24px); }
+  /* 動作の確認（デバッグ用）のカード。横幅いっぱいに出す */
+  .dbg-card { grid-column: 1 / -1; border-style: dashed; border-color: #5a3a4c; }
+  .dbg-jump { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin-top: 6px; }
+  .dbg-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dbg-btns button, .dbg-reset { height: 38px; padding: 0 12px; font-size: 14px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff;
+    font-family: inherit; touch-action: manipulation; }
+  .dbg-btns button:active, .dbg-reset:active { background: #33404d; }
+  /* 時計をずらしている間は、時計の色を変えて分かるようにする */
+  #clock.shifted { color: #ff6fb0; }
   .key { display: flex; gap: 6px; width: 100%; margin-top: 6px; }
   .key input { flex: 1; min-width: 0; padding: 9px 10px; font-size: 16px; background: #0b0d10; color: #fff; border: 1px solid #3a424b; border-radius: 10px;
     -webkit-user-select: text; user-select: text; }
@@ -368,6 +377,26 @@
       <div class="state">遅延情報: <span id="netStatus"></span><span id="checked"></span>
         <button id="rawToggle" type="button">取得内容を見る</button>
         <pre id="rawView" hidden></pre>
+      </div>
+    </section>
+    <section class="card dbg-card">
+      <h3>動作の確認（押すとすぐ反映。保存はされず、アプリを開き直すと元に戻ります）</h3>
+      <div class="row">
+        <div class="name">遅延の表示<small>選ぶと設定画面を閉じて表示を確かめられます</small></div>
+        <div class="seg" id="setMock"><button data-mock="">実際</button><button data-mock="normal">平常</button><button data-mock="delay">遅延</button><button data-mock="error">失敗</button></div>
+      </div>
+      <div class="row wide">
+        <div class="name">人が来るまでの時間<small>時計をずらして、次の波が「あと○分」の場面にします</small></div>
+        <div class="dbg-jump">
+          <div class="seg" id="setJumpDir"><button data-dir="I">上り</button><button data-dir="O">下り</button></div>
+          <div class="dbg-btns" id="setJump">
+            <button data-sec="10">あと10秒</button><button data-sec="60">あと1分</button><button data-sec="180">あと3分</button><button data-sec="300">あと5分</button><button data-sec="-5">到着直後</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="name">時計<small id="setClockState"></small></div>
+        <button class="dbg-reset" id="setClockReset">実時刻に戻す</button>
       </div>
     </section>
   </div>
@@ -1170,6 +1199,7 @@ function render() {
   const t = now();
   const sd = serviceDateOf(t);
   $('clock').textContent = hms(t);
+  $('clock').classList.toggle('shifted', clockOffsetMs !== 0);
   let dayText = (isHolidayDiagram(sd) ? '土休日' : '平日') + 'ダイヤ';
   if (sd.getFullYear() > HOLIDAY_LAST_YEAR) dayText += '（祝日リスト要更新）';
   $('dayType').textContent = dayText;
@@ -1221,7 +1251,7 @@ function isNormal(info) {
 const MOCK = {
   normal: [{ 'odpt:railway': NAMBOKU, 'odpt:trainInformationText': { ja: '現在、平常どおり運転しています。' } }],
   delay: [{ 'odpt:railway': NAMBOKU, 'odpt:trainInformationStatus': { ja: '遅延' },
-    'odpt:trainInformationText': { ja: '16時30分頃、市ケ谷駅で急病のお客様救護のため、南北線の一部列車に遅れが出ています。' } }],
+    'odpt:trainInformationText': { ja: '16時30分頃、市ケ谷駅で急病のお客様救護のため、南北線の一部列車に15分程度の遅れが出ています。' } }],
 };
 
 async function fetchDelay() {
@@ -1245,21 +1275,10 @@ async function fetchDelay() {
   }
 }
 
-// 帯に出す短い説明: 「15分遅れ・16:30頃から」。分数や時刻が分からない項目は出さない
-function delayBrief(info, text) {
-  const parts = [];
+// 帯に出す短い説明: 「15分遅れ」。分数が分からないときは空にする
+function delayBrief(text) {
   const m = text.match(/(\d+)分(?:以上)?(?:程度)?(?:の)?遅れ/) || text.match(/遅れ[^。]*?(\d+)分/);
-  if (m) parts.push(m[1] + '分遅れ');
-  let at = '';
-  const origin = info['odpt:timeOfOrigin'] || info['dc:date'];
-  const d = origin ? new Date(origin) : null;
-  if (d && !isNaN(d)) at = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  else {
-    const t = text.match(/(\d{1,2})時(\d{1,2})分頃/);
-    if (t) at = t[1].padStart(2, '0') + ':' + t[2].padStart(2, '0');
-  }
-  if (at) parts.push(at + '頃から');
-  return parts.join('・');
+  return m ? m[1] + '分遅れ' : '';
 }
 
 function applyDelay(json, err) {
@@ -1280,7 +1299,7 @@ function applyDelay(json, err) {
     const status = jaText(info['odpt:trainInformationStatus']);
     const text = jaText(info['odpt:trainInformationText']);
     delay.text = (status ? '【' + status + '】' : '') + text;
-    delay.brief = delayBrief(info, text);
+    delay.brief = delayBrief(text);
     delay.checkedAt = now();
     console.info('運行情報', info);
   }
@@ -1387,9 +1406,74 @@ function openSettings() {
   $('setKey').value = settings.apiKey;
   $('setKey').type = 'password';
   $('keyShow').textContent = '表示';
+  showDebugState();
   $('settings').scrollTop = 0;
   $('settings').classList.add('open');
 }
+
+// ===================== 動作の確認（設定画面のデバッグ用機能） =====================
+// どれも押すとすぐ反映し、保存はしない（アプリを開き直すと実際の時刻・実際の遅延情報に戻る）
+let jumpDir = 'I';
+function showDebugState() {
+  for (const b of $('setMock').children) b.classList.toggle('on', b.dataset.mock === mockMode);
+  for (const b of $('setJumpDir').children) b.classList.toggle('on', b.dataset.dir === jumpDir);
+  const sec = Math.round(clockOffsetMs / 1000);
+  $('setClockState').textContent = sec === 0 ? '実際の時刻で表示中'
+    : 'ずらして表示中（' + new Date(now()).toLocaleString('ja-JP') + '）。ずらしている間は時計がピンク色になります';
+}
+
+// 遅延情報を模擬に切り替える（'' は実際に取得）
+function setMock(v) {
+  mockMode = v;
+  if ($('dbgMock')) $('dbgMock').value = v;
+  fetchDelay();
+}
+$('setMock').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  setMock(b.dataset.mock);
+  closeSettings();
+});
+
+$('setJumpDir').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  jumpDir = b.dataset.dir;
+  showDebugState();
+});
+
+// 方向 dir で、実際の今より後に来る波のうち「あと sec 秒」の時刻にしたときに画面の先頭に出るものを探し、その時刻を返す。
+// （直前の波が「到着」を数えている間は先頭に出ないので、そういう波は飛ばす）。今日の電車が終わっていたら次の運行日から探す
+function jumpTime(dir, sec) {
+  let from = Date.now();
+  for (let day = 0; day < 3; day++) {
+    for (const w of wavesOf(from, dir, 400)) {
+      if (w.at <= Date.now()) continue;
+      const t = w.at - sec * 1000;
+      const head = wavesOf(t, dir, 1)[0];
+      if (head && head.at === w.at) return t;
+    }
+    const next = serviceDateOf(from);
+    next.setDate(next.getDate() + 1);
+    next.setHours(SERVICE_DAY_START_HOUR);
+    from = next.getTime();
+  }
+  return null;
+}
+$('setJump').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const t = jumpTime(jumpDir, Number(b.dataset.sec));
+  if (t == null) return;
+  clockOffsetMs = t - Date.now();
+  closeSettings();
+  render();
+});
+$('setClockReset').addEventListener('click', () => {
+  clockOffsetMs = 0;
+  showDebugState();
+  render();
+});
 function closeSettings() { $('settings').classList.remove('open'); }
 
 // ▲▼ボタン: 1回押すと1秒、押し続けると少しずつ速く変わる
