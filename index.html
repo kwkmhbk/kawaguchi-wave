@@ -971,7 +971,7 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
-const DEFAULTS = { offset: 60, walk: 100, holdSec: 60, swap: false,
+const DEFAULTS = { offset: 60, walk: 120, holdSec: 70, swap: false,
   countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
 
 function loadSettings() {
