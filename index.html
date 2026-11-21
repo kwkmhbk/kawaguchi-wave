@@ -156,8 +156,6 @@
   body.rows1 .track { margin-bottom: 16px; position: relative; top: -8px; }
   body.rows1 .next { flex: none; height: 52px; margin-bottom: 3px; }
   .col.arrived .label, .col.arrived .sec, .col.arrived .unit { color: var(--led-red); }
-  .col.arrived .label { animation: blink 1s steps(1) infinite; }
-  @keyframes blink { 50% { opacity: .25; } }
   body.delayed .sec, body.delayed .label, body.delayed .unit { color: var(--led-dim) !important; text-shadow: none; }
 
   /* 次以降の波の一覧。2行分だけ見せて、指でスライドすると先の時刻も見られる */
@@ -190,7 +188,7 @@
   .set-bar button.primary { background: #1f6fb2; border-color: #2a83cc; font-weight: 600; }
   /* 横向きでは左（時間）のカードを広めにして2枚並べる。幅が狭いときは縦に並べる */
   .set-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
-  @media (max-width: 560px) and (orientation: landscape) { .set-body { grid-template-columns: 1fr; } }  /* 縦向きは画面を回して横幅を確保するので対象外 */
+  @media (max-width: 560px) { .set-body { grid-template-columns: 1fr; } }
   .card { background: #14181d; border: 1px solid #262c33; border-radius: 12px; padding: 4px 12px; }
   .card h3 { margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: #8a96a3; letter-spacing: .05em; }
   .row { display: flex; align-items: center; gap: 10px; min-height: 48px; border-top: 1px solid #222830; }
@@ -228,7 +226,6 @@
     .set-body { margin-top: 6px; }
     .row { min-height: 44px; }
     .stepper button { height: 38px; }
-    .key { flex-basis: 170px; }
     .card .row + h3 { margin-top: 4px; }
     .notes { margin-top: 4px; }
   }
@@ -242,26 +239,13 @@
   .dbg-btns button:active, .dbg-reset:active { background: #33404d; }
   /* 時計をずらしている間は、時計の色を変えて分かるようにする */
   #clock.shifted { color: #ff6fb0; }
-  .key { display: flex; gap: 6px; flex: 0 1 200px; min-width: 0; }
-  .key input { flex: 1; min-width: 0; padding: 7px 10px; font-size: 16px; background: #0b0d10; color: #fff; border: 1px solid #3a424b; border-radius: 10px;
-    -webkit-user-select: text; user-select: text; }
-  .key button { width: 52px; font-size: 14px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
 
-  /* 縦向き（iPhone を縦向きロックしたまま横に持ったとき）は、画面全体を90度回して横向きと同じレイアウトで出す。
-     iPhone の Web アプリは画面の向きを固定できないための代わり。
-     回すと縦と横が入れ替わるので、文字の大きさの基準（vh / vw）も入れ替える */
+  /* 縦向きは、上り・下りを上下に並べる（各列は画面の幅いっぱい・高さは半分ずつ）。
+     列の幅と高さの割合が横向きと変わるので、カウントの文字の大きさの基準も変える */
   @media (orientation: portrait) {
-    :root { --f: min(25vw, 14.4vh); }
-    body.rows1 { --f: min(35vw, 19.4vh); }
-    body:not(.debug) #app, #settings, #dbgPage, #delayPanel {
-      position: fixed; top: 0; left: 0; right: auto; bottom: auto;
-      width: 100vh; width: 100dvh; height: 100vw;
-      transform-origin: top left;
-      transform: rotate(90deg) translateY(-100%);  /* ホームボタンが右になる持ち方 */
-    }
-    body.rot-ccw:not(.debug) #app, body.rot-ccw #settings, body.rot-ccw #dbgPage, body.rot-ccw #delayPanel {
-      transform: rotate(-90deg) translateX(-100%);  /* ホームボタンが左になる持ち方 */
-    }
+    #cols { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    :root { --f: min(13vh, 25vw); }
+    body.rows1 { --f: min(18vh, 34vw); }
   }
   #debug button { padding: 10px; font-size: 16px; border-radius: 10px; border: 1px solid #555; background: #222; color: #fff; font-family: inherit; }
 
@@ -364,28 +348,16 @@
         <div class="name">オフセット<small>秒を推定できない列車用</small></div>
         <div class="stepper" data-key="offset"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
       </div>
-      <h3>遅延情報</h3>
-      <div class="row">
-        <div class="name">ODPT の APIキー<small>空欄なら遅延検知は止まる</small></div>
-        <div class="key">
-          <input type="password" id="setKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="未設定">
-          <button id="keyShow">表示</button>
-        </div>
-      </div>
     </section>
     <section class="card">
       <h3>表示</h3>
       <div class="row">
-        <div class="name">左右を入れ替える<small>オンで左に下り・右に上り</small></div>
+        <div class="name">左右を入れ替える<small>オンで左（縦向きは上）に下り</small></div>
         <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
       </div>
       <div class="row">
         <div class="name">一覧の行数<small>1行でカウントが大きくなる</small></div>
         <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
-      </div>
-      <div class="row">
-        <div class="name">回転の向き<small>縦向き時のホームボタン</small></div>
-        <div class="seg" id="setRot"><button data-rot="cw">右</button><button data-rot="ccw">左</button></div>
       </div>
       <h3>その他</h3>
       <div class="row">
@@ -973,7 +945,9 @@ const TIMETABLE = {"generated":"2026-10-27","weekday":[[312,"I","日吉","B580M"
 const SERVICE_DAY_START_HOUR = 4;
 const DELAY_INTERVAL_MS = 3 * 60 * 1000; // 遅延情報を取りに行く間隔（3分）
 const NAMBOKU = 'odpt.Railway:TokyoMetro.Namboku';
-const ODPT_URL = 'https://api.odpt.org/api/v4/odpt:TrainInformation?odpt:operator=odpt.Operator:TokyoMetro&acl:consumerKey=';
+// 遅延情報の中継サーバー（relay/worker.js を Cloudflare Workers に置いたもの）。ODPT の APIキーは中継サーバー側だけが持つ。
+// 空欄のあいだは遅延検知は止まる
+const RELAY_URL = 'https://kawaguchi-wave-relay.relay120812.workers.dev';
 const LIST_COUNT = 40; // 次以降の一覧に並べる本数（スライドで見られる）
 
 // 日本の祝日（振替休日・国民の休日を含む）。翌年以降の分はここに書き足す。
@@ -997,9 +971,8 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
-const DEFAULTS = { offset: 60, walk: 100, holdSec: 60, swap: false, apiKey: '',
-  countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1, // listRows: 下の一覧の行数（1 か 2）
-  rotate: 'cw' }; // rotate: 縦向きのとき画面を回す向き（'cw'=ホームボタン右 / 'ccw'=ホームボタン左）
+const DEFAULTS = { offset: 60, walk: 100, holdSec: 60, swap: false,
+  countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
 
 function loadSettings() {
   try {
@@ -1224,7 +1197,6 @@ function render() {
   $('cols').classList.toggle('swap', !!settings.swap);
   const rows = Number(settings.listRows) === 1 ? 1 : 2;
   document.body.classList.toggle('rows1', rows === 1);
-  document.body.classList.toggle('rot-ccw', settings.rotate === 'ccw');
 
   renderColumn($('colI'), t, sd, 'I');
   renderColumn($('colO'), t, sd, 'O');
@@ -1275,7 +1247,7 @@ const MOCK = {
 async function fetchDelay() {
   if (mockMode === 'error') return applyDelay(null, new Error('模擬エラー'));
   if (mockMode) return applyDelay(MOCK[mockMode]);
-  if (!settings.apiKey) {
+  if (!RELAY_URL) {
     delay.state = 'nokey';
     renderDelay();
     return;
@@ -1283,7 +1255,7 @@ async function fetchDelay() {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const res = await fetch(ODPT_URL + encodeURIComponent(settings.apiKey), { cache: 'no-store', signal: ctrl.signal });
+    const res = await fetch(RELAY_URL, { cache: 'no-store', signal: ctrl.signal });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     applyDelay(await res.json());
   } catch (e) {
@@ -1345,16 +1317,30 @@ async function requestWakeLock() {
   try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* 拒否された場合も何もしない */ }
 }
 
+// 予備の方法: 無音・真っ黒の小さな動画を見えない所で繰り返し再生し、画面が消えないようにする。
+// ホーム画面に追加した Web アプリでは、iOS 18.4 より前は Wake Lock が効かないための対策。
+const keepAwakeVideo = document.createElement('video');
+keepAwakeVideo.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAW/bW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAB9AAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAll0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAB9AAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAfQAAAAAAABAAAAAAHRbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAgABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABfG1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAATxzdGJsAAAAuHN0c2QAAAAAAAAAAQAAAKhhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MS4xOS4xMDEgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAALmF2Y0MBQsAK/+EAFmdCwArZHsBEAAADAAQAAAMACDxImSABAAVoy4PLIAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAAApAAAAAAAAAABhzdHRzAAAAAAAAAAEAAAACAABAAAAAABRzdHNzAAAAAAAAAAEAAAABAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAABxzdHN6AAAAAAAAAAAAAAACAAAChgAAAAoAAAAYc3RjbwAAAAAAAAACAAAGBAAACKoAAAKRdHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAgAAAAAAAAfQAAAAAAAAAAAAAAABAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAJGVkdHMAAAAcZWxzdAAAAAAAAAABAAAH0AAABAAAAQAAAAACCW1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAH0AAAEKAVcQAAAAAAC1oZGxyAAAAAAAAAABzb3VuAAAAAAAAAAAAAAAAU291bmRIYW5kbGVyAAAAAbRtaW5mAAAAEHNtaGQAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAXhzdGJsAAAAfnN0c2QAAAAAAAAAAQAAAG5tcDRhAAAAAAAAAAEAAAAAAAAAAAABABAAAAAAH0AAAAAAADZlc2RzAAAAAAOAgIAlAAIABICAgBdAFQAAAAAAH0AAAAE/BYCAgAUViFblAAaAgIABAgAAABRidHJ0AAAAAAAAH0AAAAE/AAAAIHN0dHMAAAAAAAAAAgAAABAAAAQAAAAAAQAAAoAAAAAoc3RzYwAAAAAAAAACAAAAAQAAAAEAAAABAAAAAgAAAAgAAAABAAAAWHN0c3oAAAAAAAAAAAAAABEAAAAVAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAABxzdGNvAAAAAAAAAAMAAAXvAAAIigAACLQAAAAac2dwZAEAAAByb2xsAAAAAgAAAAH//wAAABxzYmdwAAAAAHJvbGwAAAABAAAAEQAAAAEAAABhdWR0YQAAAFltZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAACxpbHN0AAAAJKl0b28AAAAcZGF0YQAAAAEAAAAATGF2ZjYxLjcuMTAwAAAACGZyZWUAAALtbWRhdN4CAExhdmM2MS4xOS4xMDEAAjBADgAAAnAGBf//bNxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNjQgcjMyMDQgMzczNjk3YiAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMjUgLSBodHRwOi8vd3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVsbGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz0xIGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlpbnRfbWluPTEgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAOZYiEBb///w9FAAFPf4ABGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwAAAAZBmjgK+oABGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBw==';
+keepAwakeVideo.muted = true; keepAwakeVideo.loop = true; keepAwakeVideo.playsInline = true;
+keepAwakeVideo.setAttribute('muted', ''); keepAwakeVideo.setAttribute('playsinline', '');
+keepAwakeVideo.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+document.body.appendChild(keepAwakeVideo);
+function keepAwake() {
+  requestWakeLock();
+  if (keepAwakeVideo.paused) keepAwakeVideo.play().catch(() => { /* タップされるまで再生できない場合は、次のタップで試す */ });
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    requestWakeLock(); // 画面が裏に回ると Wake Lock は自動で解除されるので取り直す
+    keepAwake(); // 画面が裏に回ると Wake Lock も動画も止まるので取り直す
     startDelayWatch();
   } else {
     stopDelayWatch();
   }
 });
-// 一部の環境ではタップしないと Wake Lock が取れないため、タップ時にも試す
-document.addEventListener('click', requestWakeLock);
+// 一部の環境ではタップしないと Wake Lock が取れない・動画を再生できないため、タップ時にも試す
+document.addEventListener('click', keepAwake);
+document.addEventListener('touchend', keepAwake);
 // 2本指で広げるズームを止める（iPhone の Safari 用）
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault());
 
@@ -1408,11 +1394,6 @@ function openSettings() {
   $('setSwap').checked = !!settings.swap;
   draft.listRows = Number(settings.listRows) === 1 ? 1 : 2;
   showRows();
-  draft.rotate = settings.rotate === 'ccw' ? 'ccw' : 'cw';
-  showRot();
-  $('setKey').value = settings.apiKey;
-  $('setKey').type = 'password';
-  $('keyShow').textContent = '表示';
   $('settings').scrollTop = 0;
   $('settings').classList.add('open');
 }
@@ -1524,23 +1505,6 @@ $('setRows').addEventListener('click', e => {
   showRows();
 });
 
-// 縦向きロック時に画面を回す向きの選択
-function showRot() {
-  for (const b of $('setRot').children) b.classList.toggle('on', b.dataset.rot === draft.rotate);
-}
-$('setRot').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  draft.rotate = b.dataset.rot;
-  showRot();
-});
-
-// APIキーの文字を見せる／隠す
-$('keyShow').addEventListener('click', () => {
-  const show = $('setKey').type === 'password';
-  $('setKey').type = show ? 'text' : 'password';
-  $('keyShow').textContent = show ? '隠す' : '表示';
-});
 $('setSave').addEventListener('click', () => {
   settings = {
     offset: draft.offset,
@@ -1548,11 +1512,9 @@ $('setSave').addEventListener('click', () => {
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
     listRows: draft.listRows,
-    rotate: draft.rotate,
     countMode: settings.countMode,
     listTarget: settings.listTarget,
     listRemain: settings.listRemain,
-    apiKey: $('setKey').value.trim(),
   };
   saveSettings(settings);
   closeSettings();
@@ -1599,7 +1561,7 @@ if (TIMETABLE.generated) {
 }
 renderDelay();
 tick();
-requestWakeLock();
+keepAwake();
 if (document.visibilityState === 'visible') startDelayWatch();
 </script>
 </body>

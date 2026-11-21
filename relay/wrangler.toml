@@ -1,0 +1,5 @@
+# 遅延情報の中継サーバー（Cloudflare Workers）の設定
+# APIキーはここに書かず、`npx wrangler secret put ODPT_KEY` で Cloudflare に預ける
+name = "kawaguchi-wave-relay"
+main = "worker.js"
+compatibility_date = "2026-11-01"
