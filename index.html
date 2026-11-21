@@ -1540,6 +1540,10 @@ $('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('o
 $('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
 
 // ===================== アプリインストール（ホーム画面に追加） =====================
+// サービスワーカーを登録する（Android の Chrome は、これがないとアプリとしてインストールさせないことがある）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.warn('サービスワーカーを登録できません', e));
+}
 // ホーム画面からアプリとして開いているか（iPhone は navigator.standalone、Android などは display-mode で分かる）
 const isInstalledApp = () => navigator.standalone === true ||
   matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;

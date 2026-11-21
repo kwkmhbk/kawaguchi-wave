@@ -12,6 +12,7 @@
 | `relay/worker.js` / `relay/wrangler.toml` | 遅延情報の中継サーバー（Cloudflare Workers）。ODPT の APIキーはここにだけ預ける |
 | `apple-touch-icon.png` / `favicon.png` | ホーム画面のアイコン（180×180）とブラウザのタブのアイコン |
 | `manifest.webmanifest` / `icon-192.png` / `icon-512.png` | Android などでホーム画面からアプリとして（全画面で）開くための情報とアイコン |
+| `sw.js` | サービスワーカー。Android の Chrome でアプリとしてインストールできるようにするためのもの。毎回ネットから最新を取り、つながらないときだけ保存しておいた版を出す |
 | `README.md` | この説明 |
 
 ## 時刻表の更新（ダイヤ改正のとき）
