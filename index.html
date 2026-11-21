@@ -13,6 +13,8 @@
 <!-- ホーム画面のアイコン（180×180）とブラウザのタブのアイコン -->
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
+<!-- Android などでホーム画面からアプリとして（全画面で）開くための情報 -->
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
@@ -130,8 +132,10 @@
   .next li.none { justify-content: center; font-size: 16px; color: var(--led-dim); }
   /* 高さは3桁の秒数に合わせて固定する（秒⇔分:秒を切り替えても、上と下の高さが変わらないように） */
   /* --f: カウントの数字（3桁のとき）の大きさ。一覧を1行にしたときは大きくする */
+  /* 一覧1行のときは、高さの低い画面（ブラウザで開いてアドレスバーなどが出ているとき）でも
+     位置表示が見出しに食い込まないよう、高さから決まる上限（100vh - 225px）も設ける */
   :root { --f: min(25vh, 14.4vw); }
-  body.rows1 { --f: min(35vh, 19.4vw); }
+  body.rows1 { --f: min(35vh, 19.4vw, calc(100vh - 225px)); }
   .count { display: flex; flex-wrap: wrap; align-content: center; align-items: baseline; justify-content: center; gap: 4px; white-space: nowrap;
     height: calc(var(--f) * 1.02); overflow: hidden; }
   /* 桁数が変わっても「あと／到着」「秒」の位置が動かないように、数字の欄は幅を固定して中央寄せにする。
@@ -245,7 +249,17 @@
   @media (orientation: portrait) {
     #cols { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
     :root { --f: min(13vh, 25vw); }
-    body.rows1 { --f: min(18vh, 34vw); }
+    body.rows1 { --f: min(18vh, 34vw, calc(41vh - 155px)); }
+  }
+  /* ブラウザで開いたときは、アドレスバーなどの分だけ使える高さが減る。
+     dvh（アドレスバーなどを除いた高さ）が使える端末では、文字の大きさの基準を vh から dvh に置き換える */
+  @supports (height: 1dvh) {
+    :root { --f: min(25dvh, 14.4vw); }
+    body.rows1 { --f: min(35dvh, 19.4vw, calc(100dvh - 225px)); }
+    @media (orientation: portrait) {
+      :root { --f: min(13dvh, 25vw); }
+      body.rows1 { --f: min(18dvh, 34vw, calc(41dvh - 155px)); }
+    }
   }
   #debug button { padding: 10px; font-size: 16px; border-radius: 10px; border: 1px solid #555; background: #222; color: #fff; font-family: inherit; }
 
