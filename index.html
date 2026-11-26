@@ -487,7 +487,7 @@
           <div class="dbg-jump">
             <div class="seg" id="setJumpDir"><button data-dir="I">上り</button><button data-dir="O">下り</button></div>
             <div class="dbg-btns" id="setJump">
-              <button data-sec="10">あと10秒</button><button data-sec="60">あと1分</button><button data-sec="180">あと3分</button><button data-sec="300">あと5分</button><button data-sec="-5">到着直後</button>
+              <button data-sec="10">あと10秒</button><button data-sec="60">あと1分</button><button data-sec="180">あと3分</button><button data-sec="300">あと5分</button><button data-dep="5">発車直前</button><button data-sec="-5">到着直後</button>
             </div>
           </div>
         </div>
@@ -1067,7 +1067,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.02.35';
+const APP_VERSION = '2026.11.27.02.39';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1544,14 +1544,14 @@ $('setJumpDir').addEventListener('click', e => {
   showDebugState();
 });
 
-// 方向 dir で、実際の今より後に来る波のうち「あと sec 秒」の時刻にしたときに画面の先頭に出るものを探し、その時刻を返す。
+// 方向 dir で、実際の今より後に来る波のうち、timeOf(波) の時刻にしたときに画面の先頭に出るものを探し、その時刻を返す。
 // （直前の波が「到着」を数えている間は先頭に出ないので、そういう波は飛ばす）。今日の電車が終わっていたら次の運行日から探す
-function jumpTime(dir, sec) {
+function jumpTime(dir, timeOf) {
   let from = Date.now();
   for (let day = 0; day < 3; day++) {
     for (const w of wavesOf(from, dir, 400)) {
       if (w.at <= Date.now()) continue;
-      const t = w.at - sec * 1000;
+      const t = timeOf(w);
       const head = wavesOf(t, dir, 1)[0];
       if (head && head.at === w.at) return t;
     }
@@ -1565,7 +1565,10 @@ function jumpTime(dir, sec) {
 $('setJump').addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
-  const t = jumpTime(jumpDir, Number(b.dataset.sec));
+  // 発車直前: 電車が前駅を出る5秒前 / それ以外: お客さんが店に着く sec 秒前
+  const t = b.dataset.dep != null
+    ? jumpTime(jumpDir, w => w.trainAt - RUN_IN_SEC[w.dir] * 1000 - Number(b.dataset.dep) * 1000)
+    : jumpTime(jumpDir, w => w.at - Number(b.dataset.sec) * 1000);
   if (t == null) return;
   clockOffsetMs = t - Date.now();
   closeAll();
