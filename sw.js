@@ -1,5 +1,5 @@
 // サービスワーカー: Android の Chrome でアプリとしてインストールできるようにするためのもの。
-// このサイトのファイルは、毎回まずネットから最新を取り（取れたら保存しておく）、
+// このサイトのファイルは、毎回まずネットから最新を取り（ブラウザの使い回しも確かめ直す。取れたら保存しておく）、
 // ネットにつながらないときだけ保存しておいたものを返す。古い版が出続けることはない。
 // 中継サーバー（遅延情報）やフォントなど、ほかのサイトへの読み込みには手を出さない。
 const CACHE = 'kawaguchi-wave-v1';
@@ -17,10 +17,13 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith((async () => {
     try {
-      const res = await fetch(req);
+      // cache: 'no-cache' で、ブラウザが前に取ったもの（GitHub Pages は10分使い回してよいとしている）をそのまま使わず、
+      // 毎回サーバーに「変わっていないか」を確かめる。変わっていなければ短い返事だけで済む。
+      // これで、アプリを終了して開き直せば、公開直後でも新しい版になる
+      const res = await fetch(req, { cache: 'no-cache' });
       if (res.ok) {
         const copy = res.clone();
-        // 戻ってきたときの読み込み直しで付ける ?r= は、保存するときは外す（毎回別のものとして溜まらないように）
+        // 「再読み込み」ボタンで付ける ?r= は、保存するときは外す（毎回別のものとして溜まらないように）
         const key = new URL(req.url);
         key.searchParams.delete('r');
         e.waitUntil(caches.open(CACHE).then(c => c.put(key.href, copy)));
