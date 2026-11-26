@@ -79,6 +79,11 @@
     border: 0; border-radius: 3px; position: relative; z-index: 1; white-space: nowrap;
   }
   body.delayed #delayBadge { display: inline-block; }
+  /* 遅延情報を取れなかったときだけ出す小さな表示（帯が出ないのを「遅延なし」と思わないように） */
+  /* 幅の狭い画面でも時計を押し出さないよう、2行の小さな文字にする */
+  #headMid { min-width: 0; }
+  #delayErr { display: none; font-size: 10px; line-height: 1.25; color: var(--led-dim); white-space: nowrap; }
+  body.delayerr #delayErr { display: inline-block; }
   #delayPanel { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center;
     background: rgba(0,0,0,.8); padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px); }
   #delayPanel.open { display: flex; }
@@ -307,7 +312,7 @@
 <div id="app">
   <div id="head" class="board">
     <button id="station" class="led">川口元郷</button>
-    <div id="headMid"><button id="delayBadge">南北線 遅延中・予測は目安</button></div>
+    <div id="headMid"><button id="delayBadge">南北線 遅延中・予測は目安</button><span id="delayErr">遅延情報を<br>取得できません</span></div>
     <div id="clock" class="led">--:--:--</div>
     <div id="dayType" class="led"></div>
   </div>
@@ -1074,7 +1079,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.03.03';
+const APP_VERSION = '2026.11.27.03.12';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1409,6 +1414,7 @@ function applyDelay(json, err) {
 function renderDelay() {
   const delayed = delay.state === 'delay';
   document.body.classList.toggle('delayed', delayed);
+  document.body.classList.toggle('delayerr', delay.state === 'error');
   if (!delayed) $('delayPanel').classList.remove('open');
   $('delayText').textContent = delay.text;
   $('delayBadge').textContent = '南北線 遅延中' + (delay.brief ? '・' + delay.brief : '・予測は目安');
