@@ -20,7 +20,10 @@ self.addEventListener('fetch', e => {
       const res = await fetch(req);
       if (res.ok) {
         const copy = res.clone();
-        e.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)));
+        // 戻ってきたときの読み込み直しで付ける ?r= は、保存するときは外す（毎回別のものとして溜まらないように）
+        const key = new URL(req.url);
+        key.searchParams.delete('r');
+        e.waitUntil(caches.open(CACHE).then(c => c.put(key.href, copy)));
       }
       return res;
     } catch (err) {
