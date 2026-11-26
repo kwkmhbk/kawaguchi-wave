@@ -283,14 +283,14 @@
     .row { min-height: 42px; }
     .stepper button { height: 36px; width: 44px; }
     .stepper .val { font-size: 22px; min-width: 56px; }
-    .go, .seg button { height: 34px; }
+    #settings .go, .seg button { height: 36px; } /* 右側のボタンは▲▼と同じ高さにして、上下の間を同じだけ空ける */
     .notes { margin-top: 4px; line-height: 1.45; }
   }
   /* さらに低い横画面（Android の多くは高さ360px前後） */
   @media (max-height: 380px) and (orientation: landscape) {
     .row { min-height: 37px; }
     .stepper button { height: 32px; }
-    .go, .seg button { height: 32px; }
+    #settings .go, .seg button { height: 32px; }
     .card h3 { font-size: 11px; }
   }
   /* 画面の下にボタン帯があり、さらに低くなったとき */
@@ -298,7 +298,7 @@
     .set-bar button { height: 30px; }
     .row { min-height: 34px; }
     .stepper button { height: 30px; }
-    .go, .seg button { height: 30px; }
+    #settings .go, .seg button { height: 30px; }
     .notes { font-size: 10px; }
   }
   /* 設定画面: 項目名は改行しない。右側のボタン（インストール・再読み込み・開く・戻す）は同じ幅にそろえる */
@@ -1111,7 +1111,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.03.28';
+const APP_VERSION = '2026.11.27.03.30';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
