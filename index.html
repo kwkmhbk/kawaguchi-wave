@@ -1065,8 +1065,8 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
 // walk: 電車が着いてから、お客さんが店に着くまでの歩行時間（上り・下り共通。同じホームのため）
 // offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
-// countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
-// listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り捨て））
+// countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り上げ））
+// listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り上げ））
 const DEFAULTS = { offset: 60, walk: 120, holdSec: 70, swap: false,
   countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
 
@@ -1199,14 +1199,14 @@ function renderColumn(col, t, sd, dir) {
   col.classList.toggle('arrived', arrived);
   // 表示は「秒」「分:秒」「分」の3通り（一覧より上のタッチで切り替え）。
   // 秒・分:秒: 到着後はマイナスを付けずに 0, 1, 2… とカウントアップする
-  // 分: 秒は切り捨て。1分未満は「あと1分以内」、到着後は数えずに「到着」とだけ出す
+  // 分: 秒は切り上げ（「あと4分」→「あと3分」→「あと2分」→「あと1分以内」）。到着後は数えずに「到着」とだけ出す
   const n = arrived ? -remain : remain;
   const mode = settings.countMode;
   let label = arrived ? '到着' : 'あと', secText, unit = '秒', within = false;
   if (mode === 'min') {
     if (arrived) { label = ''; secText = '到着'; unit = ''; }
-    else if (remain < 60) { secText = '1'; unit = '分'; within = true; }
-    else { secText = String(Math.floor(remain / 60)); unit = '分'; }
+    else if (remain <= 60) { secText = '1'; unit = '分'; within = true; }
+    else { secText = String(Math.ceil(remain / 60)); unit = '分'; }
   } else if (mode === 'ms') {
     secText = fmtDur(n); unit = '';
   } else {
@@ -1265,8 +1265,8 @@ function renderColumn(col, t, sd, dir) {
     const [sa, sl] = li.querySelectorAll('.s b, .s small:not(.pre)');
     setText(ta, hms(target));
     setText(tl, store ? '店着' : '駅着');
-    // 残り時間: 秒 /「分:秒」/ 分（秒は切り捨て。一覧の電車は60秒以上先なので0分にはならない）
-    setText(sa, listRemain === 'ms' ? fmtDur(remainSec) : listRemain === 'min' ? String(Math.floor(remainSec / 60)) : String(remainSec));
+    // 残り時間: 秒 /「分:秒」/ 分（上のカウントと同じく秒は切り上げ）
+    setText(sa, listRemain === 'ms' ? fmtDur(remainSec) : listRemain === 'min' ? String(Math.ceil(remainSec / 60)) : String(remainSec));
     setText(sl, listRemain === 'ms' ? '' : listRemain === 'min' ? '分' : '秒');
   }
   return { at: w.at, arrived };
