@@ -441,7 +441,7 @@
         <button class="go" id="installBtn">インストール</button>
       </div>
       <div class="row">
-        <div class="name">バージョン<small>公開した日時</small></div>
+        <div class="name">バージョン<small>公開した日時で管理</small></div>
         <span class="ver" id="appVersion"></span>
       </div>
     </section>
@@ -1066,8 +1066,8 @@ const HOLIDAYS = new Set([
 const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
-// 公開した日時（日本時間）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27 02:28';
+// 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
+const APP_VERSION = '2026.11.27.02.31';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
