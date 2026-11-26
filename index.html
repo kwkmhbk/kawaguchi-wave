@@ -85,15 +85,34 @@
   #delayPanel .box { max-width: 560px; background: #111; border: 2px solid var(--warn); border-radius: 8px; padding: 14px 16px; color: var(--warn); font-size: 17px; line-height: 1.6; }
   #delayPanel .box b { display: block; margin-bottom: 6px; }
   #delayPanel .box small { display: block; margin-top: 8px; font-size: 12px; color: #999; }
-  /* ホーム画面への追加の手順（iPhone など、インストール画面を直接出せない端末用）。設定画面より手前に出す */
+  /* アプリインストールの案内（アプリにすると良いことの絵と、インストールの手順）。設定画面より手前に出す */
   #installPanel { position: fixed; inset: 0; z-index: 12; display: none; align-items: center; justify-content: center;
-    background: rgba(0,0,0,.8); padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px);
+    background: rgba(0,0,0,.8); padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
+      calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
     font-family: -apple-system, "Hiragino Sans", sans-serif; }
   #installPanel.open { display: flex; }
-  #installPanel .box { max-width: 480px; background: #14181d; border: 1px solid #3a424b; border-radius: 12px; padding: 14px 18px; color: #e8e8e8; font-size: 15px; line-height: 1.7; }
-  #installPanel .box b { display: block; margin-bottom: 6px; font-size: 16px; }
-  #installPanel .box ol { margin: 0; padding-left: 1.4em; }
-  #installPanel .box small { display: block; margin-top: 10px; font-size: 12px; color: #8a96a3; }
+  #installPanel .box { width: 100%; max-width: 640px; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: #14181d; border: 1px solid #3a424b; border-radius: 12px; padding: 12px 16px; color: #e8e8e8; font-size: 14px; line-height: 1.6; }
+  #installPanel h4 { margin: 0 0 8px; font-size: 16px; }
+  #installPanel h4 + h4, #installPanel .steps-h { margin-top: 12px; }
+  /* 良いことの絵と説明。幅があれば横に並べる */
+  .merit { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .merit svg { flex: 0 0 auto; width: 236px; max-width: 100%; height: auto; }
+  .merit ul { flex: 1 1 220px; margin: 0; padding: 0; list-style: none; }
+  .merit li { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; }
+  .merit li i { flex: none; width: 22px; height: 22px; border-radius: 6px; background: #1f6fb2; color: #fff; font-style: normal;
+    font-size: 13px; line-height: 22px; text-align: center; }
+  .merit li small { display: block; color: #8a96a3; font-size: 12px; }
+  #installSteps { margin: 0; padding-left: 1.4em; }
+  #installSteps li { margin: 3px 0; }
+  #installSteps svg { width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px; }
+  #installSteps .ui { display: inline-block; padding: 0 6px; border-radius: 5px; background: #2a3038; white-space: nowrap; }
+  .ip-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+  .ip-btns button { height: 40px; padding: 0 16px; font-size: 15px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
+  .ip-btns button.primary { background: #1f6fb2; border-color: #2a83cc; font-weight: 600; }
+  #ipInstall { display: none; }
+  #installPanel.can-prompt #ipInstall { display: inline-block; }
+  #installPanel.can-prompt .steps-h, #installPanel.can-prompt #installSteps { display: none; }
   .go:disabled { opacity: .5; }
   #clock { font-size: 22px; color: var(--led-amber); font-variant-numeric: tabular-nums; }
   #dayType { font-size: 13px; color: var(--led-green); white-space: nowrap; }
@@ -355,9 +374,39 @@
 
 <div id="installPanel">
   <div class="box">
-    <b>アプリをインストールする手順</b>
+    <h4>アプリにすると</h4>
+    <div class="merit">
+      <svg viewBox="0 0 236 170" role="img" aria-label="ブラウザとアプリの見え方の違い">
+        <!-- 左: ブラウザで開いたとき（上下にアドレスバーなどがあって、表示が小さくなる） -->
+        <rect x="8" y="4" width="84" height="150" rx="12" fill="#000" stroke="#4a525b" stroke-width="2"/>
+        <rect x="14" y="12" width="72" height="14" rx="3" fill="#3a424b"/>
+        <rect x="22" y="15.5" width="56" height="7" rx="3.5" fill="#596470"/>
+        <rect x="14" y="30" width="72" height="9" fill="#e85d5d"/>
+        <text x="50" y="80" fill="#ffb000" font-size="34" text-anchor="middle" font-family="DotGothic16, monospace">4</text>
+        <rect x="14" y="88" width="72" height="9" fill="#2f8fe0"/>
+        <text x="50" y="128" fill="#ffb000" font-size="30" text-anchor="middle" font-family="DotGothic16, monospace">9</text>
+        <rect x="14" y="134" width="72" height="14" rx="3" fill="#3a424b"/>
+        <circle cx="30" cy="141" r="2.5" fill="#8a96a3"/><circle cx="50" cy="141" r="2.5" fill="#8a96a3"/><circle cx="70" cy="141" r="2.5" fill="#8a96a3"/>
+        <text x="50" y="167" fill="#8a96a3" font-size="11" text-anchor="middle">ブラウザ</text>
+        <!-- 矢印 -->
+        <path d="M100 79h24m-7-7l7 7-7 7" fill="none" stroke="#3dff7a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 右: アプリで開いたとき（画面いっぱい・数字が大きい） -->
+        <rect x="134" y="4" width="84" height="150" rx="12" fill="#000" stroke="#3dff7a" stroke-width="2"/>
+        <rect x="140" y="12" width="72" height="10" fill="#e85d5d"/>
+        <text x="176" y="72" fill="#ffb000" font-size="50" text-anchor="middle" font-family="DotGothic16, monospace">4</text>
+        <rect x="140" y="82" width="72" height="10" fill="#2f8fe0"/>
+        <text x="176" y="142" fill="#ffb000" font-size="50" text-anchor="middle" font-family="DotGothic16, monospace">9</text>
+        <text x="176" y="167" fill="#3dff7a" font-size="11" text-anchor="middle" font-weight="bold">アプリ</text>
+      </svg>
+      <ul>
+        <li><i>1</i><div>画面いっぱいに表示<small>アドレスバーなどが消えて、カウントの数字が大きく見やすくなります</small></div></li>
+        <li><i>2</i><div>ホーム画面からすぐ開ける<small>アイコンを押すだけで、ふつうのアプリと同じように起動します</small></div></li>
+        <li><i>3</i><div>電波が弱くても開ける<small>一度開いたあとは、電波がなくても時刻表どおりにカウントします</small></div></li>
+      </ul>
+    </div>
+    <h4 class="steps-h">インストールの手順</h4>
     <ol id="installSteps"></ol>
-    <small>タップで閉じる</small>
+    <div class="ip-btns"><button id="ipClose">閉じる</button><button id="ipInstall" class="primary">インストール</button></div>
   </div>
 </div>
 
@@ -407,6 +456,10 @@
         <div class="name">動作の確認<small>遅延や「あと○分」を試す</small></div>
         <button class="go" id="openDbg">開く ›</button>
       </div>
+      <div class="row">
+        <div class="name">初期値に戻す<small>「保存」を押すと反映</small></div>
+        <button class="go" id="setDefaults">戻す</button>
+      </div>
     </section>
   </div>
   <div class="notes">時刻表・運行情報: 公共交通オープンデータセンター（ODPT）/ Mini Tokyo 3D。<span id="ttDateFull"></span></div>
@@ -421,11 +474,11 @@
   <div class="set-body one">
       <section class="card">
         <div class="row">
-          <div class="name">遅延の表示<small>選ぶと設定を閉じて表示を確かめられます</small></div>
+          <div class="name">遅延の表示<small>表示確認用</small></div>
           <div class="seg" id="setMock"><button data-mock="">実際</button><button data-mock="normal">平常</button><button data-mock="delay">遅延</button><button data-mock="error">失敗</button></div>
         </div>
         <div class="row wide">
-          <div class="name">人が来るまでの時間<small>時計をずらして、次の波が「あと○分」の場面にします</small></div>
+          <div class="name">人が来るまでの時間<small>デバッグ用</small></div>
           <div class="dbg-jump">
             <div class="seg" id="setJumpDir"><button data-dir="I">上り</button><button data-dir="O">下り</button></div>
             <div class="dbg-btns" id="setJump">
@@ -439,7 +492,7 @@
         </div>
       </section>
   </div>
-  <div class="notes">押すとすぐ反映します。保存はされず、アプリを開き直すと実際の時刻・実際の遅延情報に戻ります。</div>
+  <div class="notes">動作確認後は元の状態に戻すこと</div>
 </div>
 
 <script>
@@ -1436,6 +1489,7 @@ function openSettings() {
   }
   $('setSwap').checked = !!settings.swap;
   draft.listRows = Number(settings.listRows) === 1 ? 1 : 2;
+  draft.resetTaps = false;
   showRows();
   $('settings').scrollTop = 0;
   showInstallState();
@@ -1454,7 +1508,7 @@ function showDebugState() {
   for (const b of $('setJumpDir').children) b.classList.toggle('on', b.dataset.dir === jumpDir);
   const sec = Math.round(clockOffsetMs / 1000);
   $('setClockState').textContent = sec === 0 ? '実際の時刻で表示中'
-    : 'ずらして表示中（' + new Date(now()).toLocaleString('ja-JP') + '）。ずらしている間は時計がピンク色になります';
+    : 'ずらして表示中（' + new Date(now()).toLocaleString('ja-JP') + '）。ずらしている間は時計がピンク色に変化';
 }
 
 // 遅延情報を模擬に切り替える（'' は実際に取得）
@@ -1547,7 +1601,40 @@ if ('serviceWorker' in navigator) {
 // ホーム画面からアプリとして開いているか（iPhone は navigator.standalone、Android などは display-mode で分かる）
 const isInstalledApp = () => navigator.standalone === true ||
   matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const UA = navigator.userAgent;
+const isIOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// iPhone の Safari 以外のブラウザ（Chrome・Firefox・Edge など）。iOS 16.4 以降は、これらからもホーム画面に追加できる
+const isIOSOtherBrowser = isIOS && /CriOS|FxiOS|EdgiOS|OPiOS/.test(UA);
+// Mac の Safari（「ファイル」メニュー →「Dock に追加」でアプリにできる）
+const isMacSafari = !isIOS && /Macintosh/.test(UA) && /Safari/.test(UA) && !/Chrome|Chromium|Edg\//.test(UA);
+// 手順の中に出す、共有ボタンなどの小さな絵
+const ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="#4da3ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 11v9h14v-9"/></svg>';
+const ICON_ADD = '<svg viewBox="0 0 24 24" fill="none" stroke="#e8e8e8" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
+const ICON_MORE = '<svg viewBox="0 0 24 24" fill="#e8e8e8"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+const ICON_MENU = '<svg viewBox="0 0 24 24" fill="#e8e8e8"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+const ui = t => '<span class="ui">' + t + '</span>';
+// 端末とブラウザに合わせたインストールの手順
+function installStepsHTML() {
+  if (isIOS && !isIOSOtherBrowser) {
+    return '<li>画面の下（または上）の共有ボタン' + ICON_SHARE + 'を押す。見当たらないときは、' + ICON_MORE + 'を押してから' + ui('共有') + 'を押す</li>' +
+      '<li>一覧を下にずらして' + ui(ICON_ADD + 'ホーム画面に追加') + 'を押す（見当たらないときは' + ui('もっと見る') + 'の中）</li>' +
+      '<li>' + ui('Webアプリとして開く') + 'がある場合はオンのまま、右上の' + ui('追加') + 'を押す</li>' +
+      '<li>ホーム画面にできた「元郷 人波時計」のアイコンから開く</li>';
+  }
+  if (isIOSOtherBrowser) {
+    return '<li>アドレスバーの横（または下）の共有ボタン' + ICON_SHARE + 'を押す</li>' +
+      '<li>' + ui(ICON_ADD + 'ホーム画面に追加') + 'を押し、' + ui('追加') + 'を押す</li>' +
+      '<li>うまくいかないときは、Safari でこのページを開いて同じ操作をする</li>';
+  }
+  if (isMacSafari) {
+    return '<li>画面上のメニューバーの' + ui('ファイル') + 'を押す</li>' +
+      '<li>' + ui('Dockに追加…') + 'を選び、' + ui('追加') + 'を押す</li>';
+  }
+  return '<li>Chrome でこのページを開く</li>' +
+    '<li>右上の' + ICON_MENU + 'メニューを押す</li>' +
+    '<li>' + ui('アプリをインストール') + '、または' + ui('ホーム画面に追加') + '→' + ui('インストール') + 'を選ぶ（' + ui('ショートカットを作成') + 'は選ばない）</li>' +
+    '<li>' + ui('アプリをインストール') + 'が出ないときは、すでにインストール済みか、広告ブロックのアプリがじゃましている可能性があります</li>';
+}
 // Android の Chrome などは、インストールできる状態になると beforeinstallprompt を送ってくる。
 // それを取っておき、ボタンを押したときにインストールの確認画面を出す
 let installPrompt = null;
@@ -1559,27 +1646,27 @@ function showInstallState() {
   $('installBtn').textContent = done ? 'インストール済み' : 'インストール';
   $('installNote').textContent = done ? 'ホーム画面から開いています' : '全画面のアプリとして開く';
 }
-$('installBtn').addEventListener('click', async () => {
-  if (installPrompt) {
-    const p = installPrompt;
-    installPrompt = null; // 確認画面は1回しか出せない
-    p.prompt();
-    try { await p.userChoice; } catch (e) { /* 何もしない */ }
-    showInstallState();
-    return;
-  }
-  // 確認画面を直接出せない端末（iPhone、すでに追加済み、Chrome 以外のブラウザなど）は手順を出す
-  $('installSteps').innerHTML = isIOS
-    ? '<li>Safari でこのページを開く（Safari 以外のアプリでは追加できないことがあります）</li>' +
-      '<li>画面の下（または上）の共有ボタン（四角から矢印が出ているアイコン）を押す</li>' +
-      '<li>「ホーム画面に追加」→「追加」を押す</li>'
-    : '<li>Chrome でこのページを開く</li>' +
-      '<li>右上の︙メニューを押す</li>' +
-      '<li>「アプリをインストール」、または「ホーム画面に追加」→「インストール」を選ぶ（「ショートカットを作成」は選ばない）</li>' +
-      '<li>メニューに「アプリをインストール」が出ないときは、すでに追加済みの可能性があります。アプリ一覧を確かめてください</li>';
+// ボタンを押したら、まずアプリにすると良いことを絵で見せる。
+// Android の Chrome など確認画面を出せるときは、案内の中の「インストール」ボタンで確認画面を出す。
+// 出せないとき（iPhone・Mac の Safari など）は、その端末に合わせた手順を出す
+$('installBtn').addEventListener('click', () => {
+  $('installSteps').innerHTML = installStepsHTML();
+  $('installPanel').classList.toggle('can-prompt', !!installPrompt);
   $('installPanel').classList.add('open');
+  $('installPanel').querySelector('.box').scrollTop = 0;
 });
-$('installPanel').addEventListener('click', () => $('installPanel').classList.remove('open'));
+$('ipInstall').addEventListener('click', async () => {
+  const p = installPrompt;
+  $('installPanel').classList.remove('open');
+  if (!p) return;
+  installPrompt = null; // 確認画面は1回しか出せない
+  p.prompt();
+  try { await p.userChoice; } catch (e) { /* 何もしない */ }
+  showInstallState();
+});
+$('ipClose').addEventListener('click', () => $('installPanel').classList.remove('open'));
+// 案内の外側（暗いところ）を押しても閉じる
+$('installPanel').addEventListener('click', e => { if (e.target === $('installPanel')) $('installPanel').classList.remove('open'); });
 // 一覧の行数（1行・2行）の選択
 function showRows() {
   for (const b of $('setRows').children) b.classList.toggle('on', Number(b.dataset.rows) === draft.listRows);
@@ -1591,16 +1678,29 @@ $('setRows').addEventListener('click', e => {
   showRows();
 });
 
+// 初期値に戻す: 画面の値をアプリの初期値（DEFAULTS）にする。「保存」で確定、「キャンセル」で取り消し
+$('setDefaults').addEventListener('click', () => {
+  for (const st of steppers) {
+    draft[st.dataset.key] = DEFAULTS[st.dataset.key];
+    showStepper(st);
+  }
+  $('setSwap').checked = DEFAULTS.swap;
+  draft.listRows = DEFAULTS.listRows;
+  draft.resetTaps = true; // 本体画面のタップで切り替える表示（カウント・一覧の時刻と残り時間）も初期値に戻す
+  showRows();
+});
+
 $('setSave').addEventListener('click', () => {
+  const tapSrc = draft.resetTaps ? DEFAULTS : settings;
   settings = {
     offset: draft.offset,
     walk: draft.walk,
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
     listRows: draft.listRows,
-    countMode: settings.countMode,
-    listTarget: settings.listTarget,
-    listRemain: settings.listRemain,
+    countMode: tapSrc.countMode,
+    listTarget: tapSrc.listTarget,
+    listRemain: tapSrc.listRemain,
   };
   saveSettings(settings);
   closeSettings();
