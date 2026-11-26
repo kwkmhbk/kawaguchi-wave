@@ -523,11 +523,11 @@
   <div class="set-body one">
       <section class="card">
         <div class="row">
-          <div class="name">遅延の表示<small>表示確認用</small></div>
+          <div class="name">遅延の表示</div>
           <div class="seg" id="setMock"><button data-mock="">実際</button><button data-mock="normal">平常</button><button data-mock="delay">遅延</button><button data-mock="error">失敗</button></div>
         </div>
         <div class="row wide">
-          <div class="name">人が来るまでの時間<small>デバッグ用</small></div>
+          <div class="name">人が来るまでの時間</div>
           <div class="dbg-jump">
             <div class="seg" id="setJumpDir"><button data-dir="I">上り</button><button data-dir="O">下り</button></div>
             <div class="dbg-btns" id="setJump">
@@ -538,9 +538,6 @@
         <div class="row">
           <div class="name">時計<small id="setClockState"></small></div>
           <button class="dbg-reset" id="setClockReset">実時刻に戻す</button>
-        </div>
-        <div class="row">
-          <div class="name">画面を消さない<small id="awakeState"></small></div>
         </div>
       </section>
   </div>
@@ -1114,7 +1111,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.03.25';
+const APP_VERSION = '2026.11.27.03.28';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1362,7 +1359,6 @@ function render() {
   }
 
   if (debugOn) $('dbgNow').textContent = new Date(t).toLocaleString('ja-JP');
-  if ($('dbgPage').classList.contains('open')) showAwakeState();
 }
 
 // 毎秒、秒の切り替わりに合わせて更新する
@@ -1587,14 +1583,6 @@ function showDebugState() {
   const sec = Math.round(clockOffsetMs / 1000);
   $('setClockState').textContent = sec === 0 ? '実際の時刻で表示中'
     : 'ずらして表示中（' + new Date(now()).toLocaleString('ja-JP') + '）。ずらしている間は時計がピンク色に変化';
-  showAwakeState();
-}
-// 「画面を消さない」の2つの方法（Wake Lock と無音動画）が今効いているかを出す。どちらか1つ効いていれば画面は消えない
-function showAwakeState() {
-  const lock = !('wakeLock' in navigator) ? '非対応' : (wakeLock && !wakeLock.released) ? '効いている' : '効いていない';
-  const video = keepAwakeVideo.paused ? '止まっている' : '再生中';
-  const ok = lock === '効いている' || video === '再生中';
-  setText($('awakeState'), (ok ? '効いている' : '効いていない（画面をタップすると再開）') + '／Wake Lock: ' + lock + '、無音動画: ' + video);
 }
 
 // 遅延情報を模擬に切り替える（'' は実際に取得）
