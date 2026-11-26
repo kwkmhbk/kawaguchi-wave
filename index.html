@@ -278,25 +278,32 @@
     .card { padding: 2px 12px; }
     .card h3 { margin: 4px 0 0; }
     .card .row + h3 { margin-top: 2px; }
-    .row { min-height: 40px; }
-    .row .name small { margin-top: 0; }
-    .stepper button { height: 34px; }
-    .stepper .val { font-size: 22px; }
-    .go, .seg button { height: 32px; }
-    .switch { transform: scale(.9); }
+    /* 左右の列を同じ幅にし、▲▼ボタンを少し細くして、右の列の項目名（アプリインストール）が切れないようにする */
+    .set-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .row { min-height: 42px; }
+    .stepper button { height: 36px; width: 44px; }
+    .stepper .val { font-size: 22px; min-width: 56px; }
+    .go, .seg button { height: 34px; }
     .notes { margin-top: 4px; line-height: 1.45; }
   }
-  /* さらに低い横画面（Android の多くは高さ360px前後。下のボタン帯でさらに低くなることもある） */
+  /* さらに低い横画面（Android の多くは高さ360px前後） */
   @media (max-height: 380px) and (orientation: landscape) {
-    .set-bar button { height: 32px; }
-    .row { min-height: 35px; }
-    .row .name { font-size: 14px; line-height: 1.25; }
-    .row .name small { font-size: 10px; }
-    .stepper button { height: 31px; width: 46px; }
-    .go, .seg button { height: 30px; }
+    .row { min-height: 37px; }
+    .stepper button { height: 32px; }
+    .go, .seg button { height: 32px; }
     .card h3 { font-size: 11px; }
+  }
+  /* 画面の下にボタン帯があり、さらに低くなったとき */
+  @media (max-height: 345px) and (orientation: landscape) {
+    .set-bar button { height: 30px; }
+    .row { min-height: 34px; }
+    .stepper button { height: 30px; }
+    .go, .seg button { height: 30px; }
     .notes { font-size: 10px; }
   }
+  /* 設定画面: 項目名は改行しない。右側のボタン（インストール・再読み込み・開く・戻す）は同じ幅にそろえる */
+  @media (orientation: landscape) { #settings .row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+  #settings .go { flex: none; width: 140px; padding: 0 8px; }
   .set-body.one { grid-template-columns: 1fr; }
   .ver { font-size: 15px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar-space { min-width: 108px; }
@@ -455,26 +462,26 @@
     <section class="card">
       <h3>時間（上り・下り共通）</h3>
       <div class="row">
-        <div class="name">歩行時間<small>駅着から店着まで</small></div>
+        <div class="name">歩行時間</div>
         <div class="stepper" data-key="walk"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
       </div>
       <div class="row">
-        <div class="name">到着後カウント<small>「到着」を数え続ける</small></div>
+        <div class="name">到着後カウント</div>
         <div class="stepper" data-key="holdSec" data-max="300"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
       </div>
       <div class="row">
-        <div class="name">オフセット<small>秒を推定できない列車用</small></div>
+        <div class="name">オフセット</div>
         <div class="stepper" data-key="offset"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
       </div>
     </section>
     <section class="card">
       <h3>表示</h3>
       <div class="row">
-        <div class="name">上り・下りを入れ替える<small>オンで下りを左（縦画面は上）に表示</small></div>
+        <div class="name">上り・下りを入れ替える</div>
         <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
       </div>
       <div class="row">
-        <div class="name">一覧の行数<small>1行でカウントが大きくなる</small></div>
+        <div class="name">一覧の行数</div>
         <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
       </div>
     </section>
@@ -482,24 +489,24 @@
     <section class="card">
       <h3>アプリ</h3>
       <div class="row">
-        <div class="name">アプリインストール<small id="installNote">全画面のアプリとして開く</small></div>
+        <div class="name">アプリインストール</div>
         <button class="go" id="installBtn">インストール</button>
       </div>
       <div class="row">
-        <div class="name">再読み込み<small>最新の版を読み込む</small></div>
+        <div class="name">再読み込み</div>
         <button class="go" id="reloadBtn">再読み込み</button>
       </div>
       <div class="row">
-        <div class="name">バージョン<small>公開した日時で管理</small></div>
+        <div class="name">バージョン</div>
         <span class="ver" id="appVersion"></span>
       </div>
       <h3>その他</h3>
       <div class="row">
-        <div class="name">動作の確認<small>遅延や「あと○分」を試す</small></div>
+        <div class="name">動作の確認</div>
         <button class="go" id="openDbg">開く ›</button>
       </div>
       <div class="row">
-        <div class="name">初期値に戻す<small>「保存」を押すと反映</small></div>
+        <div class="name">初期値に戻す</div>
         <button class="go" id="setDefaults">戻す</button>
       </div>
     </section>
@@ -1107,7 +1114,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.03.18';
+const APP_VERSION = '2026.11.27.03.25';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1726,7 +1733,6 @@ function showInstallState() {
   const done = isInstalledApp();
   $('installBtn').disabled = done;
   $('installBtn').textContent = done ? 'インストール済み' : 'インストール';
-  $('installNote').textContent = done ? 'ホーム画面から開いています' : '全画面のアプリとして開く';
 }
 // ボタンを押したら、まずアプリにすると良いことを絵で見せる。
 // Android の Chrome など確認画面を出せるときは、案内の中の「インストール」ボタンで確認画面を出す。
