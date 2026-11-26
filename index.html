@@ -265,6 +265,7 @@
     .notes { margin-top: 4px; }
   }
   .set-body.one { grid-template-columns: 1fr; }
+  .ver { font-size: 15px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar-space { min-width: 108px; }
   .go { height: 38px; padding: 0 14px; font-size: 15px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
   .dbg-jump { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin-top: 6px; }
@@ -316,7 +317,7 @@
       <div class="col-head">上り<small>赤羽岩淵・目黒方面</small></div>
       <div class="col-body">
         <div class="track">
-          <span class="pt led">前駅</span>
+          <span class="pt led">前駅<span class="tm tm-prev"></span></span>
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
           <span class="pt led">当駅<span class="tm tm-st"></span></span>
           <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
@@ -331,7 +332,7 @@
       <div class="col-head">下り<small>浦和美園方面</small></div>
       <div class="col-body">
         <div class="track">
-          <span class="pt led">前駅</span>
+          <span class="pt led">前駅<span class="tm tm-prev"></span></span>
           <span class="rail"><i class="mv train"><svg viewBox="0 0 16 12" shape-rendering="crispEdges" fill="currentColor"><rect x="6" y="0" width="4" height="1"/><rect x="7" y="1" width="2" height="1"/><rect x="2" y="2" width="12" height="1"/><path d="M1 3h14v6H1z M3 4v2h2V4z M6 4v2h2V4z M9 4v2h2V4z M12 4v2h2V4z" fill-rule="evenodd"/><rect x="2" y="9" width="12" height="1"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/></svg></i></span>
           <span class="pt led">当駅<span class="tm tm-st"></span></span>
           <span class="rail"><i class="mv person"><svg viewBox="0 0 8 12" shape-rendering="crispEdges" fill="currentColor"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="3" width="4" height="4"/><rect x="1" y="3" width="1" height="3"/><rect x="6" y="3" width="1" height="3"/><rect x="2" y="7" width="1" height="5"/><rect x="5" y="7" width="1" height="5"/></svg></i></span>
@@ -438,6 +439,10 @@
       <div class="row">
         <div class="name">アプリインストール<small id="installNote">全画面のアプリとして開く</small></div>
         <button class="go" id="installBtn">インストール</button>
+      </div>
+      <div class="row">
+        <div class="name">バージョン<small>公開した日時</small></div>
+        <span class="ver" id="appVersion"></span>
       </div>
     </section>
     </div>
@@ -1060,6 +1065,10 @@ const HOLIDAYS = new Set([
 ]);
 const HOLIDAY_LAST_YEAR = 2027;
 
+// ===================== バージョン =====================
+// 公開した日時（日本時間）。公開（git push）するたびに書き換える
+const APP_VERSION = '2026.11.27 02:28';
+
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
 // holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
@@ -1149,15 +1158,18 @@ const RUN_IN_SEC = { O: 150, I: 135 };
 //   前駅を出る前: 電車は前駅のそば / 前駅→当駅: 電車が動く / 当駅→店: 人が動く / 店に着いた後: 人が店で赤くなる
 function renderTrack(tr, t, w) {
   tr.classList.remove('msg');
-  // 「当駅」「店」の上に、それぞれに着く時刻（分:秒）を出す。着いた方は赤くする
+  // 「前駅」の上に電車が出る時刻、「当駅」「店」の上にそれぞれに着く時刻（分:秒）を出す。過ぎた方は赤くする
   const ms = x => { const d = new Date(x); return pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
-  const [tmSt, tmShop] = tr.querySelectorAll('.tm-st, .tm-shop');
-  // 着いた後は時刻の代わりに「到着」と出す
+  const tmPrev = tr.querySelector('.tm-prev'), tmSt = tr.querySelector('.tm-st'), tmShop = tr.querySelector('.tm-shop');
+  // 前駅を出る時刻（当駅に着く時刻から走行時間を引いた推定）。電車が動き出す時刻と同じ
+  const dep = w.trainAt - RUN_IN_SEC[w.dir] * 1000;
+  // 出た後・着いた後は時刻の代わりに「発車」「到着」と出す
+  setText(tmPrev, t >= dep ? '発車' : ms(dep));
   setText(tmSt, t >= w.trainAt ? '到着' : ms(w.trainAt));
   setText(tmShop, t >= w.at ? '到着' : ms(w.at));
+  tmPrev.classList.toggle('done', t >= dep);
   tmSt.classList.toggle('done', t >= w.trainAt);
   tmShop.classList.toggle('done', t >= w.at);
-  const dep = w.trainAt - RUN_IN_SEC[w.dir] * 1000;
   const train = tr.querySelector('.train'), person = tr.querySelector('.person');
   let phase, p;
   if (t < dep) { phase = 'wait'; p = 0; }
@@ -1493,6 +1505,7 @@ function openSettings() {
   showRows();
   $('settings').scrollTop = 0;
   showInstallState();
+  $('appVersion').textContent = APP_VERSION;
   $('settings').classList.add('open');
 }
 
