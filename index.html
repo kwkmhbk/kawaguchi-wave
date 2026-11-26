@@ -227,7 +227,7 @@
   /* 横向きでは左（時間）のカードを広めにして2枚並べる。幅が狭いときは縦に並べる */
   .set-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
   @media (max-width: 560px) { .set-body { grid-template-columns: 1fr; } }
-  /* 左の列は、時間とアプリの2枚の枠を縦に重ねる */
+  /* 左の列は、時間と表示の2枚の枠を縦に重ねる。右の列はアプリとその他（どちらも5行ずつになるようにしている） */
   .set-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   .card { background: #14181d; border: 1px solid #262c33; border-radius: 12px; padding: 4px 12px; }
   .card h3 { margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: #8a96a3; letter-spacing: .05em; }
@@ -268,6 +268,34 @@
     .stepper button { height: 38px; }
     .card .row + h3 { margin-top: 4px; }
     .notes { margin-top: 4px; }
+  }
+  /* スマホの横画面（高さ450px以下）: 項目が多いので、行の高さと余白をさらに詰めてスクロールなしで収める */
+  @media (max-height: 450px) and (orientation: landscape) {
+    .set-bar { padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: 4px; }
+    .set-bar button { height: 34px; }
+    .set-body { margin-top: 6px; gap: 8px; }
+    .set-col { gap: 8px; }
+    .card { padding: 2px 12px; }
+    .card h3 { margin: 4px 0 0; }
+    .card .row + h3 { margin-top: 2px; }
+    .row { min-height: 40px; }
+    .row .name small { margin-top: 0; }
+    .stepper button { height: 34px; }
+    .stepper .val { font-size: 22px; }
+    .go, .seg button { height: 32px; }
+    .switch { transform: scale(.9); }
+    .notes { margin-top: 4px; line-height: 1.45; }
+  }
+  /* さらに低い横画面（Android の多くは高さ360px前後。下のボタン帯でさらに低くなることもある） */
+  @media (max-height: 380px) and (orientation: landscape) {
+    .set-bar button { height: 32px; }
+    .row { min-height: 35px; }
+    .row .name { font-size: 14px; line-height: 1.25; }
+    .row .name small { font-size: 10px; }
+    .stepper button { height: 31px; width: 46px; }
+    .go, .seg button { height: 30px; }
+    .card h3 { font-size: 11px; }
+    .notes { font-size: 10px; }
   }
   .set-body.one { grid-template-columns: 1fr; }
   .ver { font-size: 15px; color: var(--led-white); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -440,6 +468,18 @@
       </div>
     </section>
     <section class="card">
+      <h3>表示</h3>
+      <div class="row">
+        <div class="name">上り・下りを入れ替える<small>オンで下りを左（縦画面は上）に表示</small></div>
+        <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="name">一覧の行数<small>1行でカウントが大きくなる</small></div>
+        <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
+      </div>
+    </section>
+    </div>
+    <section class="card">
       <h3>アプリ</h3>
       <div class="row">
         <div class="name">アプリインストール<small id="installNote">全画面のアプリとして開く</small></div>
@@ -452,18 +492,6 @@
       <div class="row">
         <div class="name">バージョン<small>公開した日時で管理</small></div>
         <span class="ver" id="appVersion"></span>
-      </div>
-    </section>
-    </div>
-    <section class="card">
-      <h3>表示</h3>
-      <div class="row">
-        <div class="name">上り・下りを入れ替える<small>オンで下りを左（縦画面は上）に表示</small></div>
-        <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
-      </div>
-      <div class="row">
-        <div class="name">一覧の行数<small>1行でカウントが大きくなる</small></div>
-        <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
       </div>
       <h3>その他</h3>
       <div class="row">
@@ -1079,7 +1107,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.03.12';
+const APP_VERSION = '2026.11.27.03.18';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
