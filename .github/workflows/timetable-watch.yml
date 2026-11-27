@@ -7,6 +7,11 @@ on:
   schedule:
     - cron: '0 21 * * *'   # 毎日 6:00（日本時間）
   workflow_dispatch:       # GitHub の Actions 画面から手で実行もできる
+    inputs:
+      test:
+        description: 'テスト: 変化がなくても【テスト】の Issue を作って、通知メールが届くか確かめる'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -49,3 +54,15 @@ jobs:
           else
             gh issue comment "$num" --body-file report.md
           fi
+
+      - name: テストの Issue を作る
+        if: inputs.test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '> これは通知メールが届くかを確かめるためのテストです。時刻表が変わったわけではありません。確かめたら閉じてください。'
+            echo
+            cat report.md
+          } > test.md
+          gh issue create --title "【テスト】時刻表の変化を検知しました（ダイヤ改正の可能性）" --body-file test.md
