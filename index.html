@@ -1195,7 +1195,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.15.15';
+const APP_VERSION = '2026.11.27.15.19';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1658,12 +1658,10 @@ for (const ul of document.querySelectorAll('.next')) {
 
 // 画面のタッチで表示を切り替える。
 // 一覧より上（カウントの部分）: カウントの秒⇔分:秒
-// 一覧の右半分: 残り時間の秒⇔分:秒（一覧の時刻の駅着・店着は、設定画面の「一覧の時刻」で切り替える）
+// 一覧（時刻・残り時間のどちらを押しても）: 残り時間の秒⇔分:秒（一覧の時刻の駅着・店着は、設定画面の「一覧の時刻」で切り替える）
 $('cols').addEventListener('click', e => {
   const ul = e.target.closest('.next');
   if (ul) {
-    // 画面を90度回しているときも正しく判断できるよう、座標ではなく押した部品（右の .s）で判断する。左半分は何もしない
-    if (!e.target.closest('.s')) return;
     // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
     settings.listRemain = { sec: 'ms', ms: 'min', min: 'sec' }[settings.listRemain] || 'sec';
   } else {
