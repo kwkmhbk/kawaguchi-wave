@@ -355,6 +355,8 @@
   .dbg-btns button, .dbg-reset { height: 38px; padding: 0 12px; font-size: 14px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff;
     font-family: inherit; touch-action: manipulation; }
   .dbg-btns button:active, .dbg-reset:active { background: #33404d; }
+  .dbg-reset:disabled { opacity: .4; }
+  .dbg-reset:disabled:active { background: #232a32; }
   /* 時計をずらしている間は、時計の色を変えて分かるようにする */
   #clock.shifted { color: #ff6fb0; }
 
@@ -1163,7 +1165,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.14.23';
+const APP_VERSION = '2026.11.27.14.25';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1635,6 +1637,8 @@ function showDebugState() {
   const sec = Math.round(clockOffsetMs / 1000);
   $('setClockState').textContent = sec === 0 ? '実際の時刻で表示中'
     : 'ずらして表示中（' + new Date(now()).toLocaleString('ja-JP') + '）。ずらしている間は時計がピンク色に変化';
+  // 時計をずらしていないときは、戻す必要がないので「実時刻に戻す」を押せないようにする
+  $('setClockReset').disabled = clockOffsetMs === 0;
 }
 
 // 遅延情報を模擬に切り替える（'' は実際に取得）
