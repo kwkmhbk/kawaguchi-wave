@@ -101,23 +101,42 @@
   #delayPanel .box b { display: block; margin-bottom: 6px; }
   #delayPanel .box small { display: block; margin-top: 8px; font-size: 12px; color: #999; }
   /* アプリインストールの案内（アプリにすると良いことの絵と、インストールの手順）。設定画面より手前に出す */
+  /* 画面全体を覆わず、後ろのカウント画面が透けて見えるようにする。案内の枠も小さめにする */
   #installPanel { position: fixed; inset: 0; z-index: 12; display: none; align-items: center; justify-content: center;
-    background: rgba(0,0,0,.8); padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
-      calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
+    background: rgba(0,0,0,.5); padding: calc(env(safe-area-inset-top) + 24px) calc(env(safe-area-inset-right) + 24px)
+      calc(env(safe-area-inset-bottom) + 24px) calc(env(safe-area-inset-left) + 24px);
     font-family: -apple-system, "Hiragino Sans", sans-serif; }
   #installPanel.open { display: flex; flex-direction: column; gap: 10px; }
-  #installPanel .box { width: 100%; max-width: 640px; max-height: 100%; min-height: 0; flex: 0 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    background: #14181d; border: 1px solid #3a424b; border-radius: 12px; padding: 12px 16px; color: #e8e8e8; font-size: 14px; line-height: 1.6; }
-  #installPanel h4 { margin: 0 0 8px; font-size: 16px; }
+  #installPanel .box { width: 100%; max-width: 360px; max-height: 100%; min-height: 0; flex: 0 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: #14181d; border: 1px solid #3a424b; border-radius: 12px; padding: 12px 14px; color: #e8e8e8; font-size: 13px; line-height: 1.5;
+    box-shadow: 0 8px 30px rgba(0,0,0,.6); }
+  /* 横画面は、絵と説明を横に並べられるよう少し広くする */
+  @media (orientation: landscape) { #installPanel .box { max-width: 560px; } }
+  /* スマホの横画面は高さが足りないので、余白を詰め、絵を小さくし、良いことの補足説明は省く */
+  @media (orientation: landscape) and (max-height: 450px) {
+    #installPanel { padding-top: calc(env(safe-area-inset-top) + 10px); padding-bottom: calc(env(safe-area-inset-bottom) + 10px); gap: 8px; }
+    #installPanel .box { padding: 10px 14px; }
+    #installPanel .ip-app { padding-bottom: 6px; margin-bottom: 6px; }
+    #installPanel .ip-app img { width: 36px; height: 36px; }
+    #installPanel .merit svg { width: 110px; }
+    #installPanel .merit li small { display: none; }
+    #installPanel .ip-btns { margin-top: 6px; }
+  }
+  #installPanel h4 { margin: 0 0 6px; font-size: 14px; }
   #installPanel h4 + h4, #installPanel .steps-h { margin-top: 12px; }
+  /* 一番上: アイコンとアプリ名、何のアプリかの一言 */
+  .ip-app { display: flex; gap: 10px; align-items: center; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #262c33; }
+  .ip-app img { flex: none; width: 44px; height: 44px; border-radius: 10px; }
+  .ip-app b { display: block; font-size: 16px; }
+  .ip-app small { display: block; color: #8a96a3; font-size: 12px; line-height: 1.4; }
   /* 良いことの絵と説明。幅があれば横に並べる */
-  .merit { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
-  .merit svg { flex: 0 0 auto; width: 236px; max-width: 100%; height: auto; }
+  .merit { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: center; }
+  .merit svg { flex: 0 0 auto; width: 150px; max-width: 100%; height: auto; }
   .merit ul { flex: 1 1 220px; margin: 0; padding: 0; list-style: none; }
-  .merit li { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; }
-  .merit li i { flex: none; width: 22px; height: 22px; border-radius: 6px; background: #1f6fb2; color: #fff; font-style: normal;
-    font-size: 13px; line-height: 22px; text-align: center; }
-  .merit li small { display: block; color: #8a96a3; font-size: 12px; }
+  .merit li { display: flex; gap: 8px; align-items: flex-start; margin: 3px 0; }
+  .merit li i { flex: none; width: 20px; height: 20px; border-radius: 6px; background: #1f6fb2; color: #fff; font-style: normal;
+    font-size: 12px; line-height: 20px; text-align: center; }
+  .merit li small { display: block; color: #8a96a3; font-size: 11px; }
   #installSteps { margin: 0; padding-left: 1.4em; }
   #installSteps li { margin: 3px 0; }
   #installSteps svg { width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px; }
@@ -436,7 +455,8 @@
 
 <div id="installPanel">
   <div class="box">
-    <h4>アプリにすると</h4>
+    <div class="ip-app"><img src="apple-touch-icon.png" alt=""><div><b>元郷 人波時計</b><small>川口元郷に着く電車から、お店に人が来るまでを数える時計です</small></div></div>
+    <h4>ホーム画面に追加すると</h4>
     <div class="merit">
       <svg viewBox="0 0 236 170" role="img" aria-label="ブラウザとアプリの見え方の違い">
         <!-- 左: ブラウザで開いたとき（上下にアドレスバーなどがあって、表示が小さくなる） -->
@@ -1137,7 +1157,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.13.41';
+const APP_VERSION = '2026.11.27.13.55';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1892,12 +1912,19 @@ renderDelay();
 tick();
 keepAwake();
 // スマホ・タブレットのブラウザで開いたとき（まだインストールしていないとき）は、インストールの案内を出す。
-// 「次回から表示しない」にチェックしてあれば出さない。パソコンでは出さない
+// いきなり出すと何のアプリか分からないので、先にカウント画面を5秒見てもらってから出す。
+// 「次回から表示しない」にチェックしてあれば出さない。パソコンでは出さない。その間に設定などを開いていれば出さない
+const GUIDE_DELAY_MS = 5000;
 {
   const isMobile = isIOS || /Android|Mobi/.test(UA);
   let hidden = false;
   try { hidden = localStorage.getItem(HIDE_GUIDE_KEY) === '1'; } catch (e) { /* 読めなければ出す */ }
-  if (isMobile && !isInstalledApp() && !hidden) openInstallPanel();
+  if (isMobile && !isInstalledApp() && !hidden) {
+    setTimeout(() => {
+      const busy = ['settings', 'dbgPage', 'installPanel', 'delayPanel'].some(id => $(id).classList.contains('open'));
+      if (!busy) openInstallPanel();
+    }, GUIDE_DELAY_MS);
+  }
 }
 if (document.visibilityState === 'visible') startDelayWatch();
 </script>
