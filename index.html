@@ -89,6 +89,8 @@
     border: 0; border-radius: 3px; position: relative; z-index: 1; white-space: nowrap;
   }
   body.delayed #delayBadge { display: inline-block; }
+  /* 縦画面は「遅延中」だけにする（「南北線 」「・15分遅れ」を隠す）。横画面はすべて出す */
+  @media (orientation: portrait) { #delayBadge .wide { display: none; } }
   /* 遅延情報を取れなかったときだけ出す小さな表示（帯が出ないのを「遅延なし」と思わないように） */
   /* 幅の狭い画面でも時計を押し出さないよう、2行の小さな文字にする */
   #headMid { min-width: 0; }
@@ -341,7 +343,7 @@
     #settings .go, .seg button { height: 30px; }
     .notes { font-size: 10px; }
   }
-  /* 設定画面: 項目名は改行しない。右側のボタン（インストール・再読み込み・開く・戻す）は同じ幅にそろえる */
+  /* 設定画面: 項目名は改行しない。右側のボタン（インストール・更新・開く・戻す）は同じ幅にそろえる */
   @media (orientation: landscape) { #settings .row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
   #settings .go { flex: none; width: 140px; padding: 0 8px; }
   .set-body.one { grid-template-columns: 1fr; }
@@ -387,7 +389,7 @@
 <div id="app">
   <div id="head" class="board">
     <button id="station" class="led">川口元郷</button>
-    <div id="headMid"><button id="delayBadge">遅延中</button><span id="delayErr">遅延情報を<br>取得できません</span></div>
+    <div id="headMid"><button id="delayBadge"><span class="wide">南北線 </span>遅延中<span class="wide">・予測は目安</span></button><span id="delayErr">遅延情報を<br>取得できません</span></div>
     <div id="clock" class="led">--:--:--</div>
     <div id="dayType" class="led"></div>
   </div>
@@ -532,6 +534,7 @@
       </div>
     </section>
     </div>
+    <div class="set-col">
     <section class="card">
       <h3>アプリ</h3>
       <div class="row">
@@ -539,13 +542,15 @@
         <button class="go" id="installBtn">インストール</button>
       </div>
       <div class="row">
-        <div class="name">再読み込み</div>
-        <button class="go" id="reloadBtn">再読み込み</button>
+        <div class="name">最新版に更新</div>
+        <button class="go" id="reloadBtn">更新</button>
       </div>
       <div class="row">
         <div class="name">バージョン</div>
         <span class="ver" id="appVersion"></span>
       </div>
+    </section>
+    <section class="card">
       <h3>その他</h3>
       <div class="row">
         <div class="name">動作の確認</div>
@@ -556,6 +561,7 @@
         <button class="go" id="setDefaults">戻す</button>
       </div>
     </section>
+    </div>
   </div>
   <div class="notes">遅延情報: 南北線が遅れると、画面の上に「遅延中」と表示する。（3分ごとに情報取得）<br>時刻表・運行情報:公共交通オープンデータセンター（ODPT）/ Mini Tokyo 3D。<span id="ttDateFull"></span></div>
 </div>
@@ -1157,7 +1163,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.14.17';
+const APP_VERSION = '2026.11.27.14.23';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1494,8 +1500,10 @@ function renderDelay() {
   document.body.classList.toggle('delayerr', delay.state === 'error');
   if (!delayed) $('delayPanel').classList.remove('open');
   $('delayText').textContent = delay.text;
-  // 帯は「遅延中」だけにする（縦画面でも時計を押し出さないように）。遅れの分数などは、帯を押すと出る文章で見る
-  $('delayBadge').textContent = '遅延中';
+  // 横画面: 「南北線 遅延中・15分遅れ」、縦画面: 「遅延中」だけ（時計を押し出さないように。前後の部分は CSS で隠す）
+  const badge = $('delayBadge');
+  const part = (text, cls) => { const s = document.createElement('span'); s.textContent = text; if (cls) s.className = cls; return s; };
+  badge.replaceChildren(part('南北線 ', 'wide'), part('遅延中'), part('・' + (delay.brief || '予測は目安'), 'wide'));
 }
 
 // 画面に表示されている間だけ3分ごとに取得する。画面に戻ったときはすぐ取得する
@@ -1530,7 +1538,7 @@ function keepAwake() {
   if (keepAwakeVideo.paused) keepAwakeVideo.play().catch(() => { /* タップされるまで再生できない場合は、次のタップで試す */ });
 }
 
-// 設定の「再読み込み」ボタンで、ページを最新の版で読み込み直す。
+// 設定の「最新版に更新」の「更新」ボタンで、ページを最新の版で読み込み直す。
 // URL に毎回違う ?r= を付けて、ブラウザが前に取ったページ（GitHub Pages は10分使い回す）を使わないようにする。
 // 戻ってきたときの自動の読み込み直しはしない（iPhone では読み込み直すと、画面に触れるまで「画面を消さない」が効かなくなるため）
 function reloadFresh() {
