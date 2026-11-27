@@ -89,6 +89,16 @@
     border: 0; border-radius: 3px; position: relative; z-index: 1; white-space: nowrap;
   }
   body.delayed #delayBadge { display: inline-block; }
+  /* 帯の文字は「南北線 遅延中」と「・15分遅れ」の2つに分けて入れている */
+  #delayBadge .brief::before { content: "・"; }
+  /* 幅の狭い画面（スマホの縦画面など）: 遅延中は、時計を押し出さないよう帯を駅名・時計の下の段に移す */
+  @media (max-width: 560px) {
+    body.delayed #head { flex-wrap: wrap; row-gap: 2px; }
+    body.delayed #headMid { order: 9; flex-basis: 100%; padding-bottom: 3px; }
+    body.delayed #clock { margin-left: auto; }
+    #delayBadge { font-size: 14px; }
+  }
+  #clock, #dayType { flex: none; }
   /* 遅延情報を取れなかったときだけ出す小さな表示（帯が出ないのを「遅延なし」と思わないように） */
   /* 幅の狭い画面でも時計を押し出さないよう、2行の小さな文字にする */
   #headMid { min-width: 0; }
@@ -1157,7 +1167,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.14.07';
+const APP_VERSION = '2026.11.27.14.12';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1494,7 +1504,14 @@ function renderDelay() {
   document.body.classList.toggle('delayerr', delay.state === 'error');
   if (!delayed) $('delayPanel').classList.remove('open');
   $('delayText').textContent = delay.text;
-  $('delayBadge').textContent = '南北線 遅延中' + (delay.brief ? '・' + delay.brief : '・予測は目安');
+  // 「南北線 遅延中」と「・15分遅れ」に分けて入れる（「・」は CSS で付ける）
+  const badge = $('delayBadge');
+  const main = document.createElement('span');
+  main.textContent = '南北線 遅延中';
+  const sub = document.createElement('span');
+  sub.className = 'brief';
+  sub.textContent = delay.brief || '予測は目安';
+  badge.replaceChildren(main, sub);
 }
 
 // 画面に表示されている間だけ3分ごとに取得する。画面に戻ったときはすぐ取得する
