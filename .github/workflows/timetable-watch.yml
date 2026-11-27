@@ -1,0 +1,51 @@
+# ダイヤ改正の見張り
+# 毎朝、南北線の時刻表（ODPT）と Mini Tokyo 3D の時刻表を調べ、変化があれば Issue を作る（登録メールに通知が届く）。
+# 同じ内容の Issue が開いたままなら、内容が変わったときだけ追記する。Issue を閉じると、次の変化でまた新しく作る。
+name: ダイヤ改正の見張り
+
+on:
+  schedule:
+    - cron: '0 21 * * *'   # 毎日 6:00（日本時間）
+  workflow_dispatch:       # GitHub の Actions 画面から手で実行もできる
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 時刻表を調べる
+        id: watch
+        run: |
+          set +e
+          REPORT_FILE=report.md node watch.js
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ $code -ne 0 ] && [ $code -ne 3 ]; then exit $code; fi
+
+      - name: Issue を作る・追記する
+        if: steps.watch.outputs.code == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 時刻表の変化を検知しました（ダイヤ改正の可能性）
+        run: |
+          strip() { grep -v '^調べた日時:' | sed -e 's/[[:space:]]*$//'; }
+          num=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title \
+                --jq "map(select(.title == env.TITLE)) | .[0].number // empty")
+          if [ -z "$num" ]; then
+            gh issue create --title "$TITLE" --body-file report.md
+            exit 0
+          fi
+          last=$(gh issue view "$num" --json body,comments --jq '(.comments | last | .body) // .body')
+          if [ "$(printf '%s\n' "$last" | strip)" = "$(strip < report.md)" ]; then
+            echo "Issue #$num と同じ内容なので追記しません"
+          else
+            gh issue comment "$num" --body-file report.md
+          fi

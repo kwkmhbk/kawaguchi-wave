@@ -20,6 +20,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: cors });
     if (!env.ODPT_KEY) return new Response('ODPT_KEY が設定されていません', { status: 500, headers: cors });
+    if (new URL(request.url).pathname === '/timetable-watch') return timetableWatch(env, ctx);
 
     // ためておいた結果があれば、それを返す
     const cache = caches.default;
@@ -48,3 +49,49 @@ export default {
     });
   },
 };
+
+// ---- ダイヤ改正の見張り（GitHub の毎日の自動チェックから呼ぶ） ----
+// 南北線と埼玉高速鉄道は直通運転なので、ダイヤ改正はほぼ同じ日になる。
+// 境目の赤羽岩淵駅の、南北線の駅時刻表から「印」（SHA-256 の先頭16文字）を作って返す。
+// 時刻・行き先・種別・方向・曜日区分だけから作るので、データの取得日などが変わっても印は変わらない。
+const WATCH_STATION = 'odpt.Station:TokyoMetro.Namboku.AkabaneIwabuchi';
+const WATCH_URL = 'https://api.odpt.org/api/v4/odpt:StationTimetable?odpt:station=' + WATCH_STATION + '&acl:consumerKey=';
+const WATCH_CACHE_SEC = 3600;
+
+async function timetableWatch(env, ctx) {
+  const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
+  const cache = caches.default;
+  const cacheKey = new Request('https://relay.cache/timetable-watch');
+  const hit = await cache.match(cacheKey);
+  if (hit) return new Response(await hit.text(), { headers });
+
+  let res;
+  try {
+    res = await fetch(WATCH_URL + encodeURIComponent(env.ODPT_KEY), { cf: { cacheTtl: 0 } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'ODPT に接続できません' }), { status: 502, headers });
+  }
+  if (!res.ok) return new Response(JSON.stringify({ error: 'ODPT HTTP ' + res.status }), { status: 502, headers });
+  const json = await res.json();
+  const tables = Array.isArray(json) ? json : [];
+  const norm = tables.map(t => [
+    t['odpt:railDirection'] || '',
+    t['odpt:calendar'] || '',
+    (t['odpt:stationTimetableObject'] || []).map(o => [
+      o['odpt:departureTime'] || o['odpt:arrivalTime'] || '',
+      (o['odpt:destinationStation'] || []).join(','),
+      o['odpt:trainType'] || '',
+    ]),
+  ]).sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1]));
+  const trains = norm.reduce((n, t) => n + t[2].length, 0);
+  if (!trains) return new Response(JSON.stringify({ error: '時刻表が空です' }), { status: 502, headers });
+
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(norm)));
+  const hash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+  const issued = [...new Set(tables.map(t => t['dct:issued']).filter(Boolean))].sort();
+  const body = JSON.stringify({ station: WATCH_STATION, hash, tables: tables.length, trains, issued });
+  ctx.waitUntil(cache.put(cacheKey, new Response(body, {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=' + WATCH_CACHE_SEC },
+  })));
+  return new Response(body, { headers });
+}

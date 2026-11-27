@@ -3,6 +3,8 @@
 // 使い方（このフォルダで実行）:
 //   node extract.js              … GitHubから最新の時刻表をダウンロードして index.html を更新
 //   node extract.js 保存済み.json … ダウンロード済みのJSONファイルを使う（通信なし）
+//   node extract.js --check      … index.html は書き換えず、埋め込み済みの時刻表と最新が同じかだけ調べる
+//                                   （同じなら終了コード 0、違えば 3。毎日の自動チェックで使う）
 //
 // ダイヤ改正のときは、Mini Tokyo 3D 側のデータ更新を待ってからもう一度実行するだけでよい。
 
@@ -10,13 +12,13 @@
 const fs = require('fs');
 const path = require('path');
 
+const ARGS = process.argv.slice(2);
+const CHECK_ONLY = ARGS.includes('--check');
+const SOURCE_FILE = ARGS.find(a => !a.startsWith('--'));
+
 const SOURCE_URL = 'https://raw.githubusercontent.com/nagix/mini-tokyo-3d/master/data/train-timetables/saitamarailway-saitamarailway.json';
 const STATION = 'SaitamaRailway.SaitamaRailway.KawaguchiMotogo';
 const HTML_FILE = path.join(__dirname, 'index.html');
-// 秒補正テーブル（平日の列車について、川口元郷に着く秒数を手で指定するもの）。
-// ここに書いた値は、下の自動推定より優先して使う。ホームで実測したら est を書き換えて、このスクリプトを実行し直す。
-// ダイヤ改正があったら中身は使えなくなるので、作り直すか空の配列 [] にする。
-const CORRECTION_FILE = path.join(__dirname, 'seconds-correction.json');
 
 // 到着秒の自動推定に使う仮の値（秒）。
 // 前の駅の発車・川口元郷の着発・次の駅の到着（どれも分単位、秒は0〜59のどこか）と矛盾しない
@@ -91,15 +93,13 @@ function estimateArrival(t, idx) {
   return r ? { sec: Math.round((r[0] + r[1]) / 2), how } : null;
 }
 
-// 秒補正テーブルを読み込み、「方向|到着分」をキーにした表にする
-function loadCorrections() {
-  if (!fs.existsSync(CORRECTION_FILE)) return new Map();
-  const map = new Map();
-  for (const c of JSON.parse(fs.readFileSync(CORRECTION_FILE, 'utf8'))) {
-    if (!/^\d\d:\d\d:\d\d$/.test(c.est)) throw new Error('秒補正テーブルの est の形が正しくありません: ' + JSON.stringify(c));
-    map.set(c.direction + '|' + c.arr, { row: c, used: 0 });
-  }
-  return map;
+
+// index.html に埋め込み済みの時刻表を読む
+function readEmbedded(html) {
+  const s = html.indexOf(MARK_START), e = html.indexOf(MARK_END);
+  if (s < 0 || e < s) throw new Error('index.html に埋め込み用の印が見つかりません');
+  const body = html.slice(s + MARK_START.length, e).trim().replace(/^const TIMETABLE = /, '').replace(/;$/, '');
+  return JSON.parse(body);
 }
 
 function fmt(min) {
@@ -107,13 +107,12 @@ function fmt(min) {
 }
 
 async function main() {
-  const trains = await loadJson(process.argv[2]);
+  const trains = await loadJson(SOURCE_FILE);
   const out = { weekday: [], holiday: [] };
   const warnings = [];
   const notStopping = [];
   const terminal = [];
-  const corrections = loadCorrections();
-  const estStats = { weekday: { table: 0, fixed: 0, wide: 0, none: 0 }, holiday: { table: 0, fixed: 0, wide: 0, none: 0 } };
+  const estStats = { weekday: { fixed: 0, wide: 0, none: 0 }, holiday: { fixed: 0, wide: 0, none: 0 } };
 
   for (const t of trains) {
     const dayKey = DAYS[t.id.split('.').pop()];
@@ -131,20 +130,11 @@ async function main() {
 
     const destKey = (t.ds && t.ds[0] || '').split('.').pop();
     if (!DEST_NAMES[destKey]) warnings.push('行き先の日本語名が未登録: ' + destKey + '（英語名のまま表示されます）');
-    // [運行日の分, 方向, 行き先, 列車番号, (到着の秒まで推定・指定できた列車だけ: 運行日の0時からの秒)]
+    // [運行日の分, 方向, 行き先, 列車番号, (到着の秒まで推定できた列車だけ: 運行日の0時からの秒)]
     const rec = [toServiceMinutes(time), dir, DEST_NAMES[destKey] || destKey, t.n];
-    // 秒補正テーブル（手で指定した値）が最優先。照合は平日ダイヤだけで、キーは「方向」と「到着分」
-    const c = dayKey === 'weekday' && corrections.get(t.d + '|' + time);
-    if (c) {
-      c.used++;
-      if (c.row.dep && row.d && c.row.dep !== row.d) warnings.push(`秒補正: ${t.d} ${time}着 の発車時刻が違います（表 ${c.row.dep} / 時刻表 ${row.d}）`);
-      rec.push(toServiceSeconds(c.row.est));
-      estStats[dayKey].table++;
-    } else {
-      const e = estimateArrival(t, idx);
-      if (e) rec.push(e.sec);
-      estStats[dayKey][e ? e.how : 'none']++;
-    }
+    const e = estimateArrival(t, idx);
+    if (e) rec.push(e.sec);
+    estStats[dayKey][e ? e.how : 'none']++;
     out[dayKey].push(rec);
   }
   for (const k of Object.keys(out)) out[k].sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
@@ -165,26 +155,31 @@ async function main() {
   console.log('\n到着秒の推定:');
   for (const [k, label] of [['weekday', '平日'], ['holiday', '土休日']]) {
     const s = estStats[k];
-    console.log(`  ${label}: 秒補正テーブル ${s.table} 本 / 自動推定 ${s.fixed} 本 / 停車に幅を持たせた推定 ${s.wide} 本 / 推定なし ${s.none} 本`);
-  }
-
-  // 秒補正テーブルの照合結果。照合できない行は、ダイヤ改正・方向名の違い・特定日だけ走る列車が考えられる
-  if (corrections.size) {
-    const all = [...corrections.values()];
-    const unmatched = all.filter(c => c.used === 0);
-    console.log(`\n秒補正テーブル: ${all.length} 行中 ${all.length - unmatched.length} 行を平日の列車に適用`);
-    if (unmatched.length) {
-      console.log('照合できなかった行（その列車には補正を使わず、今までどおりの計算になります）:');
-      for (const c of unmatched) console.log(`  ${c.row.direction} ${c.row.arr}着  est ${c.row.est}${c.row.note ? '  ※' + c.row.note : ''}`);
-    }
-    for (const c of all.filter(c => c.used > 1)) console.log(`警告: 秒補正 ${c.row.direction} ${c.row.arr}着 に一致する列車が ${c.used} 本あります`);
+    console.log(`  ${label}: 自動推定 ${s.fixed} 本 / 停車に幅を持たせた推定 ${s.wide} 本 / 推定なし ${s.none} 本`);
   }
 
   // ---- index.html への埋め込み ----
   if (!fs.existsSync(HTML_FILE)) { console.log('\nindex.html がないため埋め込みは省略しました。'); return; }
   const html = fs.readFileSync(HTML_FILE, 'utf8');
+  const embedded = readEmbedded(html);
+  if (CHECK_ONLY) {
+    // 分単位の時刻・方向・行き先・列車番号で比べる（秒の推定は計算方法の変更でも動くので、別に数える）
+    const key = r => r.slice(0, 4).join('|');
+    let changed = 0, secChanged = 0;
+    for (const k of ['weekday', 'holiday']) {
+      const a = new Set((embedded[k] || []).map(key)), b = new Set(out[k].map(key));
+      changed += [...a].filter(x => !b.has(x)).length + [...b].filter(x => !a.has(x)).length;
+      const secA = new Map((embedded[k] || []).map(r => [key(r), r[4]]));
+      secChanged += out[k].filter(r => secA.has(key(r)) && secA.get(key(r)) !== r[4]).length;
+    }
+    console.log(`\n埋め込み済みの時刻表（${embedded.generated} 取得）との比較:`);
+    if (!changed && !secChanged) { console.log('  同じです。'); return; }
+    if (changed) console.log(`  時刻・行き先・列車番号が違う列車: ${changed} 件（増えた・なくなったものを含む）`);
+    if (secChanged) console.log(`  到着秒の推定だけが違う列車: ${secChanged} 件`);
+    process.exitCode = 3;
+    return;
+  }
   const s = html.indexOf(MARK_START), e = html.indexOf(MARK_END);
-  if (s < 0 || e < s) throw new Error('index.html に埋め込み用の印が見つかりません');
   const data = {
     generated: new Date().toISOString().slice(0, 10),
     weekday: out.weekday,

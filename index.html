@@ -1165,7 +1165,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.14.25';
+const APP_VERSION = '2026.11.27.14.46';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1232,8 +1232,8 @@ function wavesOf(t, dir, count) {
   const out = [];
   for (const [min, d, dest, no, estSec] of (holiday ? TIMETABLE.holiday : TIMETABLE.weekday)) {
     if (d !== dir) continue;
-    // 秒補正テーブルにある列車: 推定した到着時刻（秒まで）＋歩行時間
-    // それ以外の列車:           時刻表の時刻（秒は00）＋オフセット
+    // 到着秒を推定できた列車: 推定した到着時刻（秒まで）＋歩行時間（extract.js が計算して埋め込んだ値）
+    // 推定できなかった列車:   時刻表の時刻（秒は00）＋オフセット
     const est = estSec != null;
     // trainAt: 電車が駅に着く時刻（推定できない列車は時刻表の分＋00秒）、at: 波（お客さんが店に着く時刻）
     const trainAt = est ? base + estSec * 1000 : base + min * 60000;
