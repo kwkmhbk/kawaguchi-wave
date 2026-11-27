@@ -542,8 +542,8 @@
         <div class="stepper" data-key="holdSec" data-max="300"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
       </div>
       <div class="row">
-        <div class="name">オフセット</div>
-        <div class="stepper" data-key="offset"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
+        <div class="name">前駅の発車調整</div>
+        <div class="stepper" data-key="depAdj" data-min="-60" data-max="60"><button data-step="-1">▼</button><span class="val"><output></output><small>秒</small></span><button data-step="1">▲</button></div>
       </div>
     </section>
     <section class="card">
@@ -1195,25 +1195,24 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.15.12';
+const APP_VERSION = '2026.11.27.15.15';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
 // holdSec: 到着（0秒）のあと「到着」と表示してカウントアップを続ける秒数。これを過ぎたら次の波を表示する
 // walk: 電車が着いてから、お客さんが店に着くまでの歩行時間（上り・下り共通。同じホームのため）
-// offset: 到着の秒を推定できない列車に使う「到着分（秒00）からのずれ」（上り・下り共通）
+// depAdj: 前駅を出る時刻の調整（秒。＋で遅く、−で早く。上り・下り共通）
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り上げ））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り上げ））
-const DEFAULTS = { offset: 60, walk: 120, holdSec: 70, swap: false,
+const DEFAULTS = { depAdj: 0, walk: 120, holdSec: 70, swap: false,
   countMode: 'min', listTarget: 'store', listRemain: 'min' };
 
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-    // 以前の方向別の設定（offsetO / walkO など）が残っていれば、下りの値を引き継ぐ
-    if (saved.offset == null && saved.offsetO != null) saved.offset = saved.offsetO;
+    // 以前の方向別の設定（walkO など）が残っていれば、下りの値を引き継ぐ
     if (saved.walk == null && saved.walkO != null) saved.walk = saved.walkO;
-    for (const k of ['offsetO', 'offsetI', 'walkO', 'walkI']) delete saved[k];
+    for (const k of ['offsetO', 'offsetI', 'walkO', 'walkI', 'offset']) delete saved[k]; // offset は設定画面から外した
     return Object.assign({}, DEFAULTS, saved);
   } catch (e) {
     return Object.assign({}, DEFAULTS);
@@ -1249,12 +1248,15 @@ function serviceDateOf(t) {
 }
 
 // ===================== 波の計算 =====================
+// 到着の秒を推定できない列車に使う「時刻表の分（秒00）から、お客さんが店に着くまで」の秒数。
+// 今の時刻表では全列車の秒を推定できていて使われないため、設定画面からは外した（2026-11-27）
+const UNKNOWN_SEC_OFFSET = 60;
 // 方向 dir の波のうち、到着からカウントアップ中（holdSec 秒まで）のものと、これから来るものを count 個返す。
 // 表示するのはその日（今の運行日）の電車だけ。終電後は空になり、朝4時に運行日が変わると次の日の電車になる
 function wavesOf(t, dir, count) {
   const holdSec = Math.max(0, Number(settings.holdSec) || 0);
   const from = t - (holdSec + 1) * 1000;
-  const offset = (Number(settings.offset) || 0) * 1000;
+  const offset = UNKNOWN_SEC_OFFSET * 1000;
   const walk = (Number(settings.walk) || 0) * 1000;
   const day = serviceDateOf(t);
   const holiday = isHolidayDiagram(day);
@@ -1282,6 +1284,11 @@ const hm = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.
 // 前駅を出てから当駅に着くまでの走行時間（秒）。extract.js の EST.runIn と同じ値
 const RUN_IN_SEC = { O: 150, I: 135 };
 
+// 前駅を出る時刻（当駅に着く時刻から走行時間を引いた推定に、設定の「前駅の発車調整」を足す）。電車が動き出す時刻と同じ
+function depOf(w) {
+  return w.trainAt - RUN_IN_SEC[w.dir] * 1000 + (Number(settings.depAdj) || 0) * 1000;
+}
+
 // 「前駅 → 当駅 → 店」の表示で、電車とお客さんが今どこにいるかを示す
 //   前駅を出る前: 電車は前駅のそば / 前駅→当駅: 電車が動く / 当駅→店: 人が動く / 店に着いた後: 人が店で赤くなる
 function renderTrack(tr, t, w) {
@@ -1289,8 +1296,7 @@ function renderTrack(tr, t, w) {
   // 「前駅」の上に電車が出る時刻、「当駅」「店」の上にそれぞれに着く時刻（分:秒）を出す。過ぎた方は赤くする
   const ms = x => { const d = new Date(x); return pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
   const tmPrev = tr.querySelector('.tm-prev'), tmSt = tr.querySelector('.tm-st'), tmShop = tr.querySelector('.tm-shop');
-  // 前駅を出る時刻（当駅に着く時刻から走行時間を引いた推定）。電車が動き出す時刻と同じ
-  const dep = w.trainAt - RUN_IN_SEC[w.dir] * 1000;
+  const dep = depOf(w);
   // 出た後・着いた後は時刻の代わりに「発車」「到着」と出す
   setText(tmPrev, t >= dep ? '発車' : ms(dep));
   setText(tmSt, t >= w.trainAt ? '到着' : ms(w.trainAt));
@@ -1673,7 +1679,11 @@ $('cols').addEventListener('click', e => {
 const draft = {};
 const steppers = document.querySelectorAll('.stepper');
 
-function showStepper(st) { st.querySelector('output').textContent = draft[st.dataset.key]; }
+// マイナスにできる項目（前駅の発車調整）は、0より大きいとき「+」を付けて出す
+function showStepper(st) {
+  const v = draft[st.dataset.key];
+  st.querySelector('output').textContent = (st.dataset.min && v > 0 ? '+' : '') + v;
+}
 
 function openSettings() {
   for (const st of steppers) {
@@ -1762,7 +1772,7 @@ $('setJump').addEventListener('click', e => {
   if (!b) return;
   // 発車直前: 電車が前駅を出る5秒前 / それ以外: お客さんが店に着く sec 秒前
   const t = b.dataset.dep != null
-    ? jumpTime(jumpDir, w => w.trainAt - RUN_IN_SEC[w.dir] * 1000 - Number(b.dataset.dep) * 1000)
+    ? jumpTime(jumpDir, w => depOf(w) - Number(b.dataset.dep) * 1000)
     : jumpTime(jumpDir, w => w.at - Number(b.dataset.sec) * 1000);
   if (t == null) return;
   clockOffsetMs = t - Date.now();
@@ -1782,8 +1792,9 @@ for (const st of steppers) {
     let timer = null;
     const stepOnce = () => {
       const k = st.dataset.key;
-      const max = Number(st.dataset.max || 600); // 下限はどれも0秒
-      draft[k] = Math.min(max, Math.max(0, draft[k] + Number(btn.dataset.step)));
+      const max = Number(st.dataset.max || 600);
+      const min = Number(st.dataset.min || 0); // 下限は、前駅の発車調整だけマイナス。ほかは0秒
+      draft[k] = Math.min(max, Math.max(min, draft[k] + Number(btn.dataset.step)));
       showStepper(st);
     };
     const stop = () => { clearTimeout(timer); timer = null; };
@@ -1946,7 +1957,7 @@ $('setDefaults').addEventListener('click', () => {
 $('setSave').addEventListener('click', () => {
   const tapSrc = draft.resetTaps ? DEFAULTS : settings;
   settings = {
-    offset: draft.offset,
+    depAdj: draft.depAdj,
     walk: draft.walk,
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
