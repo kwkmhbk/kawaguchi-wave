@@ -96,12 +96,24 @@
   #headMid { min-width: 0; }
   #delayErr { display: none; font-size: 10px; line-height: 1.25; color: var(--led-dim); white-space: nowrap; }
   body.delayerr #delayErr { display: inline-block; }
+  /* 時刻表が変わった可能性があるときの表示（遅延中のときは遅延を優先して、こちらは隠す）。遅延と見分けられるよう枠線だけにする */
+  /* 縦画面は「時刻表」だけにする（時計を押し出さないように。遅延中と同じ3文字） */
+  #ttBadge {
+    display: none; font-family: inherit; font-size: 15px; padding: 1px 9px; color: var(--warn); background: none;
+    border: 1px solid var(--warn); border-radius: 3px; position: relative; z-index: 1; white-space: nowrap;
+  }
+  body.ttchanged:not(.delayed) #ttBadge { display: inline-block; }
+  body.ttchanged #delayErr { display: none; }
+  @media (orientation: portrait) { #ttBadge .wide { display: none; } }
+  #ttPanel { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.8); padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px); }
+  #ttPanel.open { display: flex; }
   #delayPanel { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center;
     background: rgba(0,0,0,.8); padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px); }
   #delayPanel.open { display: flex; }
-  #delayPanel .box { max-width: 560px; background: #111; border: 2px solid var(--warn); border-radius: 8px; padding: 14px 16px; color: var(--warn); font-size: 17px; line-height: 1.6; }
-  #delayPanel .box b { display: block; margin-bottom: 6px; }
-  #delayPanel .box small { display: block; margin-top: 8px; font-size: 12px; color: #999; }
+  #ttPanel .box, #delayPanel .box { max-width: 560px; background: #111; border: 2px solid var(--warn); border-radius: 8px; padding: 14px 16px; color: var(--warn); font-size: 17px; line-height: 1.6; }
+  #ttPanel .box b, #delayPanel .box b { display: block; margin-bottom: 6px; }
+  #ttPanel .box small, #delayPanel .box small { display: block; margin-top: 8px; font-size: 12px; color: #999; }
   /* アプリインストールの案内（アプリにすると良いことの絵と、インストールの手順）。設定画面より手前に出す */
   /* 画面全体を覆わず、後ろのカウント画面が透けて見えるようにする。案内の枠も小さめにする */
   #installPanel { position: fixed; inset: 0; z-index: 12; display: none; align-items: center; justify-content: center;
@@ -294,6 +306,7 @@
   .seg button { width: 60px; height: 38px; font-size: 15px; border: 0; background: #232a32; color: #cfd6dd; font-family: inherit; }
   .seg button + button { border-left: 1px solid #3a424b; }
   .seg button.on { background: #1f6fb2; color: #fff; font-weight: 600; }
+  #setTtMock button { width: auto; padding: 0 14px; white-space: nowrap; } /* 「変化あり」を折り返さない */
   .switch { position: relative; width: 56px; height: 32px; flex: none; }
   .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; }
   .switch span { position: absolute; inset: 0; border-radius: 16px; background: #3a424b; transition: background .2s; pointer-events: none; }
@@ -391,7 +404,7 @@
 <div id="app">
   <div id="head" class="board">
     <button id="station" class="led">川口元郷</button>
-    <div id="headMid"><button id="delayBadge"><span class="wide">南北線 </span>遅延中<span class="wide">・予測は目安</span></button><span id="delayErr">遅延情報を<br>取得できません</span></div>
+    <div id="headMid"><button id="delayBadge"><span class="wide">南北線 </span>遅延中<span class="wide">・予測は目安</span></button><button id="ttBadge">時刻表<span class="wide"> 変更の可能性</span></button><span id="delayErr">遅延情報を<br>取得できません</span></div>
     <div id="clock" class="led">--:--:--</div>
     <div id="dayType" class="led"></div>
   </div>
@@ -453,6 +466,15 @@
   <div class="box">
     <b>南北線 遅延中・予測は目安</b>
     <span id="delayText"></span>
+    <small>タップで閉じる</small>
+  </div>
+</div>
+
+<div id="ttPanel">
+  <div class="box">
+    <b>時刻表が変わった可能性があります</b>
+    直通している東京メトロ南北線の時刻表が、このアプリに時刻表を入れたときから変わりました。埼玉高速鉄道もダイヤ改正をした可能性があります。<br>
+    カウントは古い時刻表のままなので、目安としてご覧ください。アプリの時刻表が新しくなると、この表示は消えます。
     <small>タップで閉じる</small>
   </div>
 </div>
@@ -579,6 +601,10 @@
         <div class="row">
           <div class="name">遅延の表示</div>
           <div class="seg" id="setMock"><button data-mock="">実際</button><button data-mock="normal">平常</button><button data-mock="delay">遅延</button><button data-mock="error">失敗</button></div>
+        </div>
+        <div class="row">
+          <div class="name">時刻表の変化<small id="setTtState"></small></div>
+          <div class="seg" id="setTtMock"><button data-tt="">実際</button><button data-tt="changed">変化あり</button></div>
         </div>
         <div class="row wide">
           <div class="name">人が来るまでの時間</div>
@@ -1147,6 +1173,10 @@ const NAMBOKU = 'odpt.Railway:TokyoMetro.Namboku';
 // 遅延情報の中継サーバー（relay/worker.js を Cloudflare Workers に置いたもの）。ODPT の APIキーは中継サーバー側だけが持つ。
 // 空欄のあいだは遅延検知は止まる
 const RELAY_URL = 'https://kawaguchi-wave-relay.relay120812.workers.dev';
+// ダイヤ改正の見張り: この時刻表を入れたときの、南北線（赤羽岩淵駅）の時刻表の印。
+// 中継サーバーの /timetable-watch が返す印と違えば「時刻表 変更の可能性」を出す。node watch.js --save が書き換える
+const TT_WATCH = {"hash":"3ffa88c13b28d510","issued":["2026-03-14"],"trains":361,"savedAt":"2026-11-27 14:42（日本時間）"};
+const TT_WATCH_INTERVAL_MS = 3 * 60 * 60 * 1000; // 南北線の時刻表の印を確かめる間隔（3時間）
 const LIST_COUNT = 40; // 次以降の一覧に並べる本数（スライドで見られる）
 
 // 日本の祝日（振替休日・国民の休日を含む）。翌年以降の分はここに書き足す。
@@ -1165,7 +1195,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.14.57';
+const APP_VERSION = '2026.11.27.15.08';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1508,11 +1538,47 @@ function renderDelay() {
   badge.replaceChildren(part('南北線 ', 'wide'), part('遅延中'), part('・' + (delay.brief || '予測は目安'), 'wide'));
 }
 
+// ===================== ダイヤ改正の見張り（南北線の時刻表の印） =====================
+// 方針: 変わっていたら知らせるだけ。カウントは今の時刻表のまま。取れなかったときは何も出さない
+const ttWatch = { state: 'init', checkedAt: 0 }; // state: init / ok / changed / error
+let ttMock = ''; // 動作の確認用（'changed' で「変化あり」を模擬）
+
+async function fetchTtWatch() {
+  if (!RELAY_URL || !TT_WATCH.hash) return;
+  ttWatch.checkedAt = Date.now();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(RELAY_URL.replace(/\/$/, '') + '/timetable-watch', { cache: 'no-store', signal: ctrl.signal });
+    const json = await res.json();
+    if (!res.ok || !json.hash) throw new Error(json.error || 'HTTP ' + res.status);
+    ttWatch.state = json.hash === TT_WATCH.hash ? 'ok' : 'changed';
+    if (ttWatch.state === 'changed') console.info('南北線の時刻表が変わりました', TT_WATCH, json);
+  } catch (e) {
+    ttWatch.state = 'error';
+    ttWatch.checkedAt = Date.now() - TT_WATCH_INTERVAL_MS + 30 * 60 * 1000; // 取れなかったときは30分後にもう一度
+    console.warn('南北線の時刻表の印を取得できません', e);
+  } finally {
+    clearTimeout(timer);
+  }
+  renderTtWatch();
+}
+// 前に確かめてから3時間たっていれば確かめる（遅延情報を取るたびに呼ぶ）
+function maybeFetchTtWatch() {
+  if (Date.now() - ttWatch.checkedAt >= TT_WATCH_INTERVAL_MS) fetchTtWatch();
+}
+function renderTtWatch() {
+  const changed = (ttMock || ttWatch.state) === 'changed';
+  document.body.classList.toggle('ttchanged', changed);
+  if (!changed) $('ttPanel').classList.remove('open');
+}
+
 // 画面に表示されている間だけ3分ごとに取得する。画面に戻ったときはすぐ取得する
 function startDelayWatch() {
   stopDelayWatch();
   fetchDelay();
-  delayTimer = setInterval(fetchDelay, DELAY_INTERVAL_MS);
+  maybeFetchTtWatch();
+  delayTimer = setInterval(() => { fetchDelay(); maybeFetchTtWatch(); }, DELAY_INTERVAL_MS);
 }
 function stopDelayWatch() {
   if (delayTimer) clearInterval(delayTimer);
@@ -1633,6 +1699,10 @@ $('dbgBack').addEventListener('click', () => $('dbgPage').classList.remove('open
 function closeAll() { $('dbgPage').classList.remove('open'); closeSettings(); }
 function showDebugState() {
   for (const b of $('setMock').children) b.classList.toggle('on', b.dataset.mock === mockMode);
+  for (const b of $('setTtMock').children) b.classList.toggle('on', b.dataset.tt === ttMock);
+  const ttLabel = { init: 'まだ確かめていない', ok: '変わっていない', changed: '変わった', error: '取得できない' }[ttWatch.state];
+  $('setTtState').textContent = '実際: ' + ttLabel + (ttWatch.state === 'ok' || ttWatch.state === 'changed'
+    ? '（' + new Date(ttWatch.checkedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) + ' 確認）' : '');
   for (const b of $('setJumpDir').children) b.classList.toggle('on', b.dataset.dir === jumpDir);
   const sec = Math.round(clockOffsetMs / 1000);
   $('setClockState').textContent = sec === 0 ? '実際の時刻で表示中'
@@ -1651,6 +1721,14 @@ $('setMock').addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
   setMock(b.dataset.mock);
+  closeAll();
+});
+
+$('setTtMock').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  ttMock = b.dataset.tt;
+  renderTtWatch();
   closeAll();
 });
 
@@ -1725,6 +1803,8 @@ $('station').addEventListener('click', openSettings);
 $('setCancel').addEventListener('click', closeSettings);
 $('delayBadge').addEventListener('click', () => $('delayPanel').classList.add('open'));
 $('delayPanel').addEventListener('click', () => $('delayPanel').classList.remove('open'));
+$('ttBadge').addEventListener('click', () => $('ttPanel').classList.add('open'));
+$('ttPanel').addEventListener('click', () => $('ttPanel').classList.remove('open'));
 
 // ===================== アプリインストール（ホーム画面に追加） =====================
 // サービスワーカーを登録する（Android の Chrome は、これがないとアプリとしてインストールさせないことがある）
@@ -1930,7 +2010,7 @@ const GUIDE_DELAY_MS = 5000;
   try { hidden = localStorage.getItem(HIDE_GUIDE_KEY) === '1'; } catch (e) { /* 読めなければ出す */ }
   if (isMobile && !isInstalledApp() && !hidden) {
     setTimeout(() => {
-      const busy = ['settings', 'dbgPage', 'installPanel', 'delayPanel'].some(id => $(id).classList.contains('open'));
+      const busy = ['settings', 'dbgPage', 'installPanel', 'delayPanel', 'ttPanel'].some(id => $(id).classList.contains('open'));
       if (!busy) openInstallPanel();
     }, GUIDE_DELAY_MS);
   }

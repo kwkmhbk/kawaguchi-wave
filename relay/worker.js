@@ -20,7 +20,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: cors });
     if (!env.ODPT_KEY) return new Response('ODPT_KEY が設定されていません', { status: 500, headers: cors });
-    if (new URL(request.url).pathname === '/timetable-watch') return timetableWatch(env, ctx);
+    if (new URL(request.url).pathname === '/timetable-watch') return timetableWatch(env, ctx, cors);
 
     // ためておいた結果があれば、それを返す
     const cache = caches.default;
@@ -50,7 +50,7 @@ export default {
   },
 };
 
-// ---- ダイヤ改正の見張り（GitHub の毎日の自動チェックから呼ぶ） ----
+// ---- ダイヤ改正の見張り（GitHub の毎日の自動チェックと、アプリから呼ぶ） ----
 // 南北線と埼玉高速鉄道は直通運転なので、ダイヤ改正はほぼ同じ日になる。
 // 境目の赤羽岩淵駅の、南北線の駅時刻表から「印」（SHA-256 の先頭16文字）を作って返す。
 // 時刻・行き先・種別・方向・曜日区分だけから作るので、データの取得日などが変わっても印は変わらない。
@@ -58,8 +58,8 @@ const WATCH_STATION = 'odpt.Station:TokyoMetro.Namboku.AkabaneIwabuchi';
 const WATCH_URL = 'https://api.odpt.org/api/v4/odpt:StationTimetable?odpt:station=' + WATCH_STATION + '&acl:consumerKey=';
 const WATCH_CACHE_SEC = 3600;
 
-async function timetableWatch(env, ctx) {
-  const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
+async function timetableWatch(env, ctx, cors) {
+  const headers = { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
   const cache = caches.default;
   const cacheKey = new Request('https://relay.cache/timetable-watch');
   const hit = await cache.match(cacheKey);

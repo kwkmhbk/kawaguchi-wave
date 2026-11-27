@@ -2,10 +2,11 @@
 //
 // 使い方（このフォルダで実行）:
 //   node watch.js         … 2つを調べる。変化がなければ終了コード 0、変化があれば 3、調べられなければ 1
-//   node watch.js --save  … 今の南北線の時刻表の印を timetable-watch.json に保存する（時刻表の更新を終えたあとに使う）
+//   node watch.js --save  … 今の南北線の時刻表の印を index.html の TT_WATCH に書き込む（時刻表の更新を終えたあとに使う）
+//                           アプリも同じ印と比べて「時刻表 変更の可能性」を出すので、書き込んで公開すると表示が消える
 //
 // 調べるもの:
-//   1. 南北線（赤羽岩淵駅）の時刻表 … 中継サーバー経由で ODPT から読み、前に保存した印と比べる。
+//   1. 南北線（赤羽岩淵駅）の時刻表 … 中継サーバー経由で ODPT から読み、index.html に書き込んだ印と比べる。
 //      南北線と埼玉高速鉄道は直通運転なので、ダイヤ改正はほぼ同じ日。Mini Tokyo 3D の更新より早く気づける。
 //   2. Mini Tokyo 3D の時刻表 … node extract.js --check で、index.html に埋め込んだ時刻表と比べる。
 //      こちらが変わったら、node extract.js で更新できる合図。
@@ -17,7 +18,6 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const STATE_FILE = path.join(__dirname, 'timetable-watch.json');
 const HTML_FILE = path.join(__dirname, 'index.html');
 const SAVE = process.argv.includes('--save');
 
@@ -34,19 +34,24 @@ async function fetchNamboku() {
   return json;
 }
 
-function readState() {
-  return fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : {};
+// index.html の TT_WATCH（この時刻表を入れたときの南北線の時刻表の印）
+const TT_WATCH_RE = /const TT_WATCH = (\{.*\});/;
+function readSaved() {
+  const m = fs.readFileSync(HTML_FILE, 'utf8').match(TT_WATCH_RE);
+  if (!m) throw new Error('index.html に TT_WATCH が見つかりません');
+  return JSON.parse(m[1]);
 }
 
 async function main() {
   const now = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' ') + '（日本時間）';
   const namboku = await fetchNamboku();
-  const state = readState();
 
   if (SAVE) {
-    state.namboku = { hash: namboku.hash, issued: namboku.issued, trains: namboku.trains, savedAt: now };
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2) + '\n');
-    console.log('南北線の時刻表の印を保存しました: ' + namboku.hash);
+    const saved = { hash: namboku.hash, issued: namboku.issued, trains: namboku.trains, savedAt: now };
+    const html = fs.readFileSync(HTML_FILE, 'utf8');
+    if (!TT_WATCH_RE.test(html)) throw new Error('index.html に TT_WATCH が見つかりません');
+    fs.writeFileSync(HTML_FILE, html.replace(TT_WATCH_RE, () => 'const TT_WATCH = ' + JSON.stringify(saved) + ';'));
+    console.log('南北線の時刻表の印を index.html に書き込みました: ' + namboku.hash);
     return;
   }
 
@@ -54,8 +59,8 @@ async function main() {
   let changed = false;
 
   // 1. 南北線
-  const old = state.namboku;
-  if (!old) {
+  const old = readSaved();
+  if (!old.hash) {
     lines.push('## 南北線の時刻表', '', '前回の印が保存されていません。`node watch.js --save` を実行してください。');
     changed = true;
   } else if (old.hash !== namboku.hash) {
@@ -90,7 +95,7 @@ async function main() {
   lines.push('', '## 対応の手順', '',
     '1. 埼玉高速鉄道の公式サイトでダイヤ改正のお知らせを確かめる',
     '2. Mini Tokyo 3D が更新されたら `node extract.js` で時刻表を更新し（到着秒も計算し直される）、公式時刻表と見比べる',
-    '3. `node watch.js --save` で南北線の印を保存して公開する',
+    '3. `node watch.js --save` で南北線の印をアプリに書き込んで公開する（アプリの「時刻表 変更の可能性」の表示も消える）',
     '', `調べた日時: ${now}`);
 
   const report = lines.join('\n');
