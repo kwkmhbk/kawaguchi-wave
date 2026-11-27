@@ -128,13 +128,16 @@
   /* 手順は「インストール」を押したあと（確認画面を出せない端末のとき）だけ出す */
   #installPanel .steps-h, #installSteps { display: none; }
   #installPanel.show-steps .steps-h, #installPanel.show-steps #installSteps { display: block; }
-  #installPanel.show-steps #ipInstall { display: none; }
+  #installPanel.show-steps .ip-btns { display: none; }
   /* iPhone の手順の画像 */
   #installSteps img { display: block; width: 100%; max-width: 300px; height: auto; margin: 6px 0 10px; border-radius: 8px; border: 1px solid #3a424b; }
   #installSteps .note { list-style: none; margin-left: -1.4em; color: #8a96a3; font-size: 12px; }
   /* 「次回から表示しない」は案内の枠の外（下）に、大きめに出す */
-  .ip-hide { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 10px; background: #232a32;
+  .ip-foot { flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .ip-hide { flex: none; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; box-sizing: border-box; border-radius: 10px; background: #232a32;
     border: 1px solid #3a424b; color: #fff; font-size: 16px; cursor: pointer; }
+  #ipClose { height: 44px; padding: 0 22px; font-size: 16px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
+  #ipInstall:disabled { opacity: .6; }
   .ip-hide input { width: 22px; height: 22px; margin: 0; accent-color: #1f6fb2; }
   .go:disabled { opacity: .5; }
   #clock { font-size: 22px; color: var(--led-amber); font-variant-numeric: tabular-nums; }
@@ -465,9 +468,13 @@
     </div>
     <h4 class="steps-h">インストールの手順</h4>
     <ol id="installSteps"></ol>
-    <div class="ip-btns"><button id="ipClose">閉じる</button><button id="ipInstall" class="primary">インストール</button></div>
+    <div class="ip-btns"><button id="ipInstall" class="primary">インストール</button></div>
   </div>
-  <label class="ip-hide"><input type="checkbox" id="ipHide">次回から表示しない</label>
+  <!-- 枠の外（下）に「次回から表示しない」と「閉じる」を並べる -->
+  <div class="ip-foot">
+    <label class="ip-hide"><input type="checkbox" id="ipHide">次回から表示しない</label>
+    <button id="ipClose">閉じる</button>
+  </div>
 </div>
 
 <div id="settings">
@@ -1130,7 +1137,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.13.35';
+const APP_VERSION = '2026.11.27.13.41';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1758,7 +1765,28 @@ function openInstallPanel() {
 }
 $('reloadBtn').addEventListener('click', reloadFresh);
 $('installBtn').addEventListener('click', openInstallPanel);
+// Android の Chrome は、開いてから数秒たたないと確認画面を出せる状態にならない。
+// 押したときにまだなら最大4秒待つ（押してから5秒ほどたつと、確認画面を出せなくなるため）
+function waitInstallPrompt(ms) {
+  if (installPrompt) return Promise.resolve(installPrompt);
+  return new Promise(resolve => {
+    const done = () => { clearTimeout(timer); window.removeEventListener('beforeinstallprompt', onPrompt); resolve(installPrompt); };
+    const onPrompt = () => setTimeout(done, 0); // 下の受け取り処理で installPrompt が入ってから
+    const timer = setTimeout(done, ms);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+  });
+}
 $('ipInstall').addEventListener('click', async () => {
+  const btn = $('ipInstall');
+  // iPhone など、確認画面の仕組みがない端末では待たない
+  const canWait = !isIOS && 'BeforeInstallPromptEvent' in window;
+  if (!installPrompt && canWait) {
+    btn.disabled = true;
+    btn.textContent = '準備中…';
+    await waitInstallPrompt(4000);
+    btn.disabled = false;
+    btn.textContent = 'インストール';
+  }
   const p = installPrompt;
   if (!p) {
     // 確認画面を出せないときは、手順を出してそこまでずらす
