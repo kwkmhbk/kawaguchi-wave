@@ -456,7 +456,7 @@
 <div id="installPanel">
   <div class="box">
     <div class="ip-app"><img src="apple-touch-icon.png" alt=""><div><b>元郷 人波時計</b><small>川口元郷に着く電車から、お店に人が来るまでを数える時計です</small></div></div>
-    <h4>ホーム画面に追加すると</h4>
+    <h4>アプリインストールのご案内</h4>
     <div class="merit">
       <svg viewBox="0 0 236 170" role="img" aria-label="ブラウザとアプリの見え方の違い">
         <!-- 左: ブラウザで開いたとき（上下にアドレスバーなどがあって、表示が小さくなる） -->
@@ -527,8 +527,8 @@
         <label class="switch"><input type="checkbox" id="setSwap"><span></span></label>
       </div>
       <div class="row">
-        <div class="name">一覧の行数</div>
-        <div class="seg" id="setRows"><button data-rows="1">1行</button><button data-rows="2">2行</button></div>
+        <div class="name">一覧の時刻</div>
+        <div class="seg" id="setTarget"><button data-target="train">駅着</button><button data-target="store">店着</button></div>
       </div>
     </section>
     </div>
@@ -1157,7 +1157,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.13.55';
+const APP_VERSION = '2026.11.27.14.07';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1167,7 +1167,7 @@ const SETTINGS_KEY = 'kawaguchiWave.settings';
 // countMode: カウントの表示（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り上げ））
 // listTarget: 一覧の時刻（'train'=駅着 / 'store'=店着）、listRemain: 一覧の残り時間（'sec'=秒 / 'ms'=分:秒 / 'min'=分（秒は切り上げ））
 const DEFAULTS = { offset: 60, walk: 120, holdSec: 70, swap: false,
-  countMode: 'min', listTarget: 'store', listRemain: 'min', listRows: 1 }; // listRows: 下の一覧の行数（1 か 2）
+  countMode: 'min', listTarget: 'store', listRemain: 'min' };
 
 function loadSettings() {
   try {
@@ -1393,7 +1393,7 @@ function render() {
   if (sd.getFullYear() > HOLIDAY_LAST_YEAR) dayText += '（祝日リスト要更新）';
   $('dayType').textContent = dayText;
   $('cols').classList.toggle('swap', !!settings.swap);
-  const rows = Number(settings.listRows) === 1 ? 1 : 2;
+  const rows = 1; // 一覧は1行表示に固定（行数の設定はなくした。前に2行を選んでいた人も1行になる）
   document.body.classList.toggle('rows1', rows === 1);
 
   renderColumn($('colI'), t, sd, 'I');
@@ -1575,17 +1575,14 @@ for (const ul of document.querySelectorAll('.next')) {
 
 // 画面のタッチで表示を切り替える。
 // 一覧より上（カウントの部分）: カウントの秒⇔分:秒
-// 一覧の左半分: 時刻の駅着⇔店着、一覧の右半分: 残り時間の秒⇔分:秒
+// 一覧の右半分: 残り時間の秒⇔分:秒（一覧の時刻の駅着・店着は、設定画面の「一覧の時刻」で切り替える）
 $('cols').addEventListener('click', e => {
   const ul = e.target.closest('.next');
   if (ul) {
-    // 画面を90度回しているときも正しく判断できるよう、座標ではなく押した部品（左の .t か右の .s）で判断する
-    if (!e.target.closest('.s')) {
-      settings.listTarget = settings.listTarget === 'store' ? 'train' : 'store';
-    } else {
-      // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
-      settings.listRemain = { sec: 'ms', ms: 'min', min: 'sec' }[settings.listRemain] || 'sec';
-    }
+    // 画面を90度回しているときも正しく判断できるよう、座標ではなく押した部品（右の .s）で判断する。左半分は何もしない
+    if (!e.target.closest('.s')) return;
+    // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
+    settings.listRemain = { sec: 'ms', ms: 'min', min: 'sec' }[settings.listRemain] || 'sec';
   } else {
     // 秒 → 分:秒 → 分 → 秒 … の順に切り替える
     settings.countMode = { sec: 'ms', ms: 'min', min: 'sec' }[settings.countMode] || 'sec';
@@ -1607,9 +1604,9 @@ function openSettings() {
     showStepper(st);
   }
   $('setSwap').checked = !!settings.swap;
-  draft.listRows = Number(settings.listRows) === 1 ? 1 : 2;
+  draft.listTarget = settings.listTarget === 'train' ? 'train' : 'store';
   draft.resetTaps = false;
-  showRows();
+  showTarget();
   $('settings').scrollTop = 0;
   showInstallState();
   $('appVersion').textContent = APP_VERSION;
@@ -1830,15 +1827,15 @@ $('ipHide').addEventListener('change', e => {
 $('ipClose').addEventListener('click', () => $('installPanel').classList.remove('open'));
 // 案内の外側（暗いところ）を押しても閉じる
 $('installPanel').addEventListener('click', e => { if (e.target === $('installPanel')) $('installPanel').classList.remove('open'); });
-// 一覧の行数（1行・2行）の選択
-function showRows() {
-  for (const b of $('setRows').children) b.classList.toggle('on', Number(b.dataset.rows) === draft.listRows);
+// 一覧の時刻（駅着・店着）の選択
+function showTarget() {
+  for (const b of $('setTarget').children) b.classList.toggle('on', b.dataset.target === draft.listTarget);
 }
-$('setRows').addEventListener('click', e => {
+$('setTarget').addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
-  draft.listRows = Number(b.dataset.rows);
-  showRows();
+  draft.listTarget = b.dataset.target;
+  showTarget();
 });
 
 // 初期値に戻す: 画面の値をアプリの初期値（DEFAULTS）にする。「保存」で確定、「キャンセル」で取り消し
@@ -1848,9 +1845,9 @@ $('setDefaults').addEventListener('click', () => {
     showStepper(st);
   }
   $('setSwap').checked = DEFAULTS.swap;
-  draft.listRows = DEFAULTS.listRows;
-  draft.resetTaps = true; // 本体画面のタップで切り替える表示（カウント・一覧の時刻と残り時間）も初期値に戻す
-  showRows();
+  draft.listTarget = DEFAULTS.listTarget;
+  draft.resetTaps = true; // 本体画面のタップで切り替える表示（カウント・一覧の残り時間）も初期値に戻す
+  showTarget();
 });
 
 $('setSave').addEventListener('click', () => {
@@ -1860,9 +1857,8 @@ $('setSave').addEventListener('click', () => {
     walk: draft.walk,
     holdSec: draft.holdSec,
     swap: $('setSwap').checked,
-    listRows: draft.listRows,
+    listTarget: draft.listTarget,
     countMode: tapSrc.countMode,
-    listTarget: tapSrc.listTarget,
     listRemain: tapSrc.listRemain,
   };
   saveSettings(settings);
