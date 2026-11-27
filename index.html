@@ -105,8 +105,8 @@
     background: rgba(0,0,0,.8); padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
       calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
     font-family: -apple-system, "Hiragino Sans", sans-serif; }
-  #installPanel.open { display: flex; }
-  #installPanel .box { width: 100%; max-width: 640px; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  #installPanel.open { display: flex; flex-direction: column; gap: 10px; }
+  #installPanel .box { width: 100%; max-width: 640px; max-height: 100%; min-height: 0; flex: 0 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
     background: #14181d; border: 1px solid #3a424b; border-radius: 12px; padding: 12px 16px; color: #e8e8e8; font-size: 14px; line-height: 1.6; }
   #installPanel h4 { margin: 0 0 8px; font-size: 16px; }
   #installPanel h4 + h4, #installPanel .steps-h { margin-top: 12px; }
@@ -125,9 +125,17 @@
   .ip-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
   .ip-btns button { height: 40px; padding: 0 16px; font-size: 15px; border-radius: 10px; border: 1px solid #3a424b; background: #232a32; color: #fff; font-family: inherit; }
   .ip-btns button.primary { background: #1f6fb2; border-color: #2a83cc; font-weight: 600; }
-  #ipInstall { display: none; }
-  #installPanel.can-prompt #ipInstall { display: inline-block; }
-  #installPanel.can-prompt .steps-h, #installPanel.can-prompt #installSteps { display: none; }
+  /* 手順は「インストール」を押したあと（確認画面を出せない端末のとき）だけ出す */
+  #installPanel .steps-h, #installSteps { display: none; }
+  #installPanel.show-steps .steps-h, #installPanel.show-steps #installSteps { display: block; }
+  #installPanel.show-steps #ipInstall { display: none; }
+  /* iPhone の手順の画像 */
+  #installSteps img { display: block; width: 100%; max-width: 300px; height: auto; margin: 6px 0 10px; border-radius: 8px; border: 1px solid #3a424b; }
+  #installSteps .note { list-style: none; margin-left: -1.4em; color: #8a96a3; font-size: 12px; }
+  /* 「次回から表示しない」は案内の枠の外（下）に、大きめに出す */
+  .ip-hide { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 10px; background: #232a32;
+    border: 1px solid #3a424b; color: #fff; font-size: 16px; cursor: pointer; }
+  .ip-hide input { width: 22px; height: 22px; margin: 0; accent-color: #1f6fb2; }
   .go:disabled { opacity: .5; }
   #clock { font-size: 22px; color: var(--led-amber); font-variant-numeric: tabular-nums; }
   #dayType { font-size: 13px; color: var(--led-green); white-space: nowrap; }
@@ -459,6 +467,7 @@
     <ol id="installSteps"></ol>
     <div class="ip-btns"><button id="ipClose">閉じる</button><button id="ipInstall" class="primary">インストール</button></div>
   </div>
+  <label class="ip-hide"><input type="checkbox" id="ipHide">次回から表示しない</label>
 </div>
 
 <div id="settings">
@@ -1121,7 +1130,7 @@ const HOLIDAY_LAST_YEAR = 2027;
 
 // ===================== バージョン =====================
 // 公開した日時（日本時間、YYYY.MM.DD.HH.mm）。公開（git push）するたびに書き換える
-const APP_VERSION = '2026.11.27.03.38';
+const APP_VERSION = '2026.11.27.13.35';
 
 // ===================== 設定（localStorage） =====================
 const SETTINGS_KEY = 'kawaguchiWave.settings';
@@ -1703,10 +1712,14 @@ const ui = t => '<span class="ui">' + t + '</span>';
 // 端末とブラウザに合わせたインストールの手順
 function installStepsHTML() {
   if (isIOS && !isIOSOtherBrowser) {
-    return '<li>画面の下（または上）の共有ボタン' + ICON_SHARE + 'を押す。見当たらないときは、' + ICON_MORE + 'を押してから' + ui('共有') + 'を押す</li>' +
-      '<li>一覧を下にずらして' + ui(ICON_ADD + 'ホーム画面に追加') + 'を押す（見当たらないときは' + ui('もっと見る') + 'の中）</li>' +
-      '<li>' + ui('Webアプリとして開く') + 'がある場合はオンのまま、右上の' + ui('追加') + 'を押す</li>' +
-      '<li>ホーム画面にできた「元郷 人波時計」のアイコンから開く</li>';
+    // iPhone の Safari: 画面の写真つきの手順
+    const img = (n, alt) => '<img src="img/ios-step' + n + '.jpg" alt="' + alt + '">';
+    return '<li>画面の下の' + ICON_MORE + 'を押す' + img(1, '画面の下の「…」ボタン') + '</li>' +
+      '<li>' + ui('共有') + 'を押す' + img(2, 'メニューの「共有」') + '</li>' +
+      '<li>一覧を下にずらして' + ui(ICON_ADD + 'ホーム画面に追加') + 'を押す' + img(3, '共有の一覧の「ホーム画面に追加」') + '</li>' +
+      '<li>' + ui('Webアプリとして開く') + 'はオンのまま、右上の' + ui('追加') + 'を押す' + img(4, '「ホーム画面に追加」の画面の「追加」') + '</li>' +
+      '<li>ホーム画面にできた「元郷 人波時計」のアイコンから開く</li>' +
+      '<li class="note">画面の下（または上）に共有ボタン' + ICON_SHARE + 'が直接あるときは、それを押して3から進めてください（iOS の版によって画面が違います）</li>';
   }
   if (isIOSOtherBrowser) {
     return '<li>アドレスバーの横（または下）の共有ボタン' + ICON_SHARE + 'を押す</li>' +
@@ -1732,24 +1745,39 @@ function showInstallState() {
   $('installBtn').disabled = done;
   $('installBtn').textContent = done ? 'インストール済み' : 'インストール';
 }
-// ボタンを押したら、まずアプリにすると良いことを絵で見せる。
-// Android の Chrome など確認画面を出せるときは、案内の中の「インストール」ボタンで確認画面を出す。
+// 案内では、まずアプリにすると良いことを絵で見せ、「インストール」ボタンを出す。
+// 押したとき、Android の Chrome など確認画面を出せるときは確認画面を出す。
 // 出せないとき（iPhone・Mac の Safari など）は、その端末に合わせた手順を出す
-$('reloadBtn').addEventListener('click', reloadFresh);
-$('installBtn').addEventListener('click', () => {
+const HIDE_GUIDE_KEY = 'kawaguchiWave.hideInstallGuide';
+function openInstallPanel() {
   $('installSteps').innerHTML = installStepsHTML();
-  $('installPanel').classList.toggle('can-prompt', !!installPrompt);
+  $('installPanel').classList.remove('show-steps');
+  try { $('ipHide').checked = localStorage.getItem(HIDE_GUIDE_KEY) === '1'; } catch (e) { $('ipHide').checked = false; }
   $('installPanel').classList.add('open');
   $('installPanel').querySelector('.box').scrollTop = 0;
-});
+}
+$('reloadBtn').addEventListener('click', reloadFresh);
+$('installBtn').addEventListener('click', openInstallPanel);
 $('ipInstall').addEventListener('click', async () => {
   const p = installPrompt;
+  if (!p) {
+    // 確認画面を出せないときは、手順を出してそこまでずらす
+    $('installPanel').classList.add('show-steps');
+    $('installPanel').querySelector('.steps-h').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   $('installPanel').classList.remove('open');
-  if (!p) return;
   installPrompt = null; // 確認画面は1回しか出せない
   p.prompt();
   try { await p.userChoice; } catch (e) { /* 何もしない */ }
   showInstallState();
+});
+// 「次回から表示しない」は、チェックを変えたらすぐ覚える
+$('ipHide').addEventListener('change', e => {
+  try {
+    if (e.target.checked) localStorage.setItem(HIDE_GUIDE_KEY, '1');
+    else localStorage.removeItem(HIDE_GUIDE_KEY);
+  } catch (err) { /* 保存できない環境では今回だけ */ }
 });
 $('ipClose').addEventListener('click', () => $('installPanel').classList.remove('open'));
 // 案内の外側（暗いところ）を押しても閉じる
@@ -1835,6 +1863,14 @@ if (TIMETABLE.generated) {
 renderDelay();
 tick();
 keepAwake();
+// スマホ・タブレットのブラウザで開いたとき（まだインストールしていないとき）は、インストールの案内を出す。
+// 「次回から表示しない」にチェックしてあれば出さない。パソコンでは出さない
+{
+  const isMobile = isIOS || /Android|Mobi/.test(UA);
+  let hidden = false;
+  try { hidden = localStorage.getItem(HIDE_GUIDE_KEY) === '1'; } catch (e) { /* 読めなければ出す */ }
+  if (isMobile && !isInstalledApp() && !hidden) openInstallPanel();
+}
 if (document.visibilityState === 'visible') startDelayWatch();
 </script>
 </body>
